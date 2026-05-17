@@ -198,7 +198,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header step={step} stepLabel={STEP_LABELS[step]} />
+      <Header stepLabel={STEP_LABELS[step]} />
 
       <main className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
         {/* Status Bar */}
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                   isRunning ? 'bg-warning animate-pulse' : step === 'complete' ? 'bg-success' : 'bg-text-muted'
                 }`}
               />
-              <span className="text-sm font-[family-name:var(--font-mono)] text-text-secondary">
+              <span className="text-sm font-mono text-text-secondary">
                 {STEP_LABELS[step]}
               </span>
             </div>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Agents + Budget */}
           <div className="lg:col-span-1 space-y-4">
-            <h2 className="text-sm font-[family-name:var(--font-mono)] text-text-muted uppercase tracking-wider mb-2">
+            <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider mb-2">
               Agent Fleet
             </h2>
             {agents.map((agent, i) => (
@@ -237,7 +237,7 @@ export default function DashboardPage() {
 
             {/* Overall Budget */}
             <div className="glass-card p-4 mt-4">
-              <h3 className="text-xs font-[family-name:var(--font-mono)] text-text-muted uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-mono text-text-muted uppercase tracking-wider mb-3">
                 Total Budget Consumption
               </h3>
               <BudgetMeter
@@ -250,7 +250,7 @@ export default function DashboardPage() {
 
           {/* Center Column: Delegation Tree */}
           <div className="lg:col-span-1">
-            <h2 className="text-sm font-[family-name:var(--font-mono)] text-text-muted uppercase tracking-wider mb-2">
+            <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider mb-2">
               Delegation Chain
             </h2>
             <DelegationTree agents={agents} chain={chain} step={step} />
@@ -258,7 +258,7 @@ export default function DashboardPage() {
 
           {/* Right Column: Activity Feed */}
           <div className="lg:col-span-1">
-            <h2 className="text-sm font-[family-name:var(--font-mono)] text-text-muted uppercase tracking-wider mb-2">
+            <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider mb-2">
               Activity Feed
             </h2>
             <ActivityFeed activities={activities} />

@@ -18,7 +18,7 @@ export function BudgetMeter({ allocated, consumed, label }: BudgetMeterProps) {
   return (
     <div>
       <div className="flex items-center justify-between text-xs mb-1">
-        <span className="font-[family-name:var(--font-mono)] text-text-secondary">
+        <span className="font-mono text-text-secondary">
           {consumed.toFixed(2)} / {allocated} USDC
         </span>
         {label && (
@@ -35,7 +35,7 @@ export function BudgetMeter({ allocated, consumed, label }: BudgetMeterProps) {
         <span className="text-text-muted">
           {percentage.toFixed(1)}% used
         </span>
-        <span className="text-text-muted font-[family-name:var(--font-mono)]">
+        <span className="text-text-muted font-mono">
           {remaining.toFixed(2)} remaining
         </span>
       </div>

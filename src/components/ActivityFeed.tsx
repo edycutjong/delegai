@@ -51,7 +51,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
             <span className="text-lg mt-0.5 shrink-0">{style.icon}</span>
             <div className="min-w-0 flex-1">
               <p className={`text-sm ${style.color}`}>{event.message}</p>
-              <p className="text-xs text-text-muted font-[family-name:var(--font-mono)] mt-0.5">
+              <p className="text-xs text-text-muted font-mono mt-0.5">
                 {new Date(event.timestamp).toLocaleTimeString()} · {event.agent}
               </p>
             </div>

@@ -17,11 +17,11 @@ export default function LandingPage() {
       <div className="relative z-10 max-w-3xl mx-auto text-center animate-fade-in-up">
         {/* Logo / Brand */}
         <div className="mb-8">
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-[family-name:var(--font-mono)] mb-6">
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 text-primary text-sm font-mono mb-6">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             MetaMask Smart Accounts Kit × 1Shot API
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold font-[family-name:var(--font-display)] tracking-tight mb-4">
+          <h1 className="text-5xl md:text-7xl font-bold font-display tracking-tight mb-4">
             <span className="text-primary">Deleg</span>
             <span className="text-text-primary">AI</span>
           </h1>
@@ -36,10 +36,10 @@ export default function LandingPage() {
 
         {/* Delegation Chain Preview */}
         <div className="glass-card-glow p-6 mb-8 text-left max-w-md mx-auto">
-          <p className="text-xs text-text-muted font-[family-name:var(--font-mono)] uppercase tracking-wider mb-3">
+          <p className="text-xs text-text-muted font-mono uppercase tracking-wider mb-3">
             Delegation Chain
           </p>
-          <div className="space-y-2 font-[family-name:var(--font-mono)] text-sm">
+          <div className="space-y-2 font-mono text-sm">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-primary" />
               <span className="text-primary">User</span>
@@ -106,7 +106,7 @@ export default function LandingPage() {
             { label: "Tracks", value: "5/5", color: "text-success" },
           ].map((stat) => (
             <div key={stat.label} className="glass-card p-3 text-center">
-              <p className={`text-2xl font-bold font-[family-name:var(--font-display)] ${stat.color}`}>
+              <p className={`text-2xl font-bold font-display ${stat.color}`}>
                 {stat.value}
               </p>
               <p className="text-xs text-text-muted mt-1">{stat.label}</p>

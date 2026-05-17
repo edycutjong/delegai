@@ -66,7 +66,7 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
       {chain && step === 'complete' && (
         <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center">
           <p className="text-success text-sm font-semibold">Chain Settled ✓</p>
-          <p className="text-xs text-text-muted mt-1 font-[family-name:var(--font-mono)]">
+          <p className="text-xs text-text-muted mt-1 font-mono">
             All delegations consumed and verified
           </p>
         </div>
@@ -105,11 +105,11 @@ function TreeNode({
       </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold">{label}</p>
-        <p className="text-xs text-text-muted font-[family-name:var(--font-mono)]">
+        <p className="text-xs text-text-muted font-mono">
           {budget}
         </p>
         {address && (
-          <p className="text-xs text-text-muted font-[family-name:var(--font-mono)] truncate">
+          <p className="text-xs text-text-muted font-mono truncate">
             {address.slice(0, 10)}...
           </p>
         )}

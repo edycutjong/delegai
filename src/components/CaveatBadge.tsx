@@ -35,7 +35,7 @@ export function CaveatBadge({ type, value }: CaveatBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-[family-name:var(--font-mono)] ${style.bg} ${style.text}`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono ${style.bg} ${style.text}`}
     >
       <span>{style.icon}</span>
       <span>{type.replace(/([A-Z])/g, ' $1').trim()}</span>

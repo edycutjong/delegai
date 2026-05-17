@@ -66,7 +66,7 @@ export function AgentCard({ agent }: AgentCardProps) {
         </div>
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ${statusStyle.dot}`} />
-          <span className="text-xs text-text-muted font-[family-name:var(--font-mono)]">
+          <span className="text-xs text-text-muted font-mono">
             {statusStyle.label}
           </span>
         </div>
@@ -74,7 +74,7 @@ export function AgentCard({ agent }: AgentCardProps) {
 
       <p className="text-xs text-text-muted mb-3">{ROLE_DESCRIPTIONS[agent.role]}</p>
 
-      <div className="text-xs font-[family-name:var(--font-mono)] text-text-muted mb-2 truncate">
+      <div className="text-xs font-mono text-text-muted mb-2 truncate">
         {agent.address.slice(0, 10)}...{agent.address.slice(-4)}
       </div>
 

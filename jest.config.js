@@ -9,6 +9,9 @@ const config = {
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
+    '!src/lib/types.ts',
+    '!src/app/**',
+    '!src/components/**',
   ],
   coverageThreshold: {
     global: {

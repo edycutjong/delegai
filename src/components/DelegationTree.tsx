@@ -46,7 +46,7 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
             address={dataWorker?.address}
             color={AGENT_COLORS['data-worker']}
             status={dataWorker?.status}
-            budget={dataWorker?.budget.allocated > 0 ? `${dataWorker.budget.allocated} USDC · x402` : 'Awaiting delegation'}
+            budget={(dataWorker?.budget.allocated ?? 0) > 0 ? `${dataWorker!.budget.allocated} USDC · x402` : 'Awaiting delegation'}
             isActive={isActive && ['x402_payment', 'x402_data_received', 'relay_submitting', 'relay_confirmed', 'settling', 'complete'].includes(step)}
           />
 
@@ -56,7 +56,7 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
             address={execWorker?.address}
             color={AGENT_COLORS['exec-worker']}
             status={execWorker?.status}
-            budget={execWorker?.budget.allocated > 0 ? `${execWorker.budget.allocated} USDC · 1Shot` : 'Awaiting delegation'}
+            budget={(execWorker?.budget.allocated ?? 0) > 0 ? `${execWorker!.budget.allocated} USDC · 1Shot` : 'Awaiting delegation'}
             isActive={isActive && ['relay_submitting', 'relay_confirmed', 'settling', 'complete'].includes(step)}
           />
         </div>

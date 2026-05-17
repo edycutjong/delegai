@@ -20,7 +20,7 @@ import { eventBus } from '@/lib/events';
  * 2. Create sub-delegations for workers
  * 3. Return complete delegation chain
  */
-export async function runOrchestration(agents: Agent[]): Promise<DelegationChain> {
+export async function runOrchestration(_agents: Agent[]): Promise<DelegationChain> {
   // Step 1: Request root permission
   emitActivity('delegation_created', 'user', 'Root delegation created: 50 USDC, 5 calls max');
   await delay(STEP_DELAY);

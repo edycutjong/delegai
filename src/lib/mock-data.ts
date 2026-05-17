@@ -15,7 +15,6 @@ import {
   DEMO_ADDRESSES,
   ROOT_BUDGET_USDC,
   ROOT_MAX_CALLS,
-  WORKER_BUDGET_USDC,
   WORKER_MAX_CALLS,
 } from './constants';
 

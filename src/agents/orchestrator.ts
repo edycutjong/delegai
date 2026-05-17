@@ -3,7 +3,7 @@
  * Creates delegation chain and dispatches work to agents
  * ───────────────────────────────────────────────────────── */
 
-import type { Agent, DelegationChain, ActivityEvent } from '@/lib/types';
+import type { DelegationChain, ActivityEvent } from '@/lib/types';
 import { createDelegationWithCaveats, requestPermissions } from '@/lib/delegator';
 import {
   DEMO_ADDRESSES,
@@ -20,7 +20,7 @@ import { eventBus } from '@/lib/events';
  * 2. Create sub-delegations for workers
  * 3. Return complete delegation chain
  */
-export async function runOrchestration(_agents: Agent[]): Promise<DelegationChain> {
+export async function runOrchestration(): Promise<DelegationChain> {
   // Step 1: Request root permission
   emitActivity('delegation_created', 'user', 'Root delegation created: 50 USDC, 5 calls max');
   await delay(STEP_DELAY);

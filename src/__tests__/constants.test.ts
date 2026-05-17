@@ -78,6 +78,7 @@ describe('STEP_DELAY', () => {
     let mod: typeof import('@/lib/constants');
     jest.isolateModules(() => {
       process.env.DELEGAI_DEMO_SPEED = 'fast';
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       mod = require('@/lib/constants');
     });
     expect(mod!.STEP_DELAY).toBe(500);
@@ -88,6 +89,7 @@ describe('STEP_DELAY', () => {
     let mod: typeof import('@/lib/constants');
     jest.isolateModules(() => {
       delete process.env.DELEGAI_DEMO_SPEED;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       mod = require('@/lib/constants');
     });
     expect(mod!.STEP_DELAY).toBe(1500);

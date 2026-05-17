@@ -35,7 +35,6 @@ export async function getFeeData(): Promise<RelayFeeData> {
  * Submit gasless transaction (relayer_send7710Transaction).
  */
 export async function sendTransaction(): Promise<RelaySubmission> {
-  /* istanbul ignore next */
   if (IS_DEMO) {
     await delay(800);
     return { ...MOCK_RELAY_SUBMISSION };
@@ -60,7 +59,6 @@ export async function sendTransaction(): Promise<RelaySubmission> {
  * Poll relay status (relayer_getStatus).
  */
 export async function getStatus(taskId: string): Promise<RelayStatus> {
-  /* istanbul ignore next */
   if (IS_DEMO) {
     await delay(1000);
     return { ...MOCK_RELAY_STATUS, taskId };

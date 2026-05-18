@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad-line" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="grad-vert" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <g filter="url(#glow)">
+    <!-- The straight spine of the D -->
+    <path d="M 160 120 L 160 392" stroke="url(#grad-vert)" stroke-width="24" stroke-linecap="round"/>
+    
+    <!-- The curved bowl of the D -->
+    <path d="M 160 120 C 420 120, 420 392, 160 392" fill="none" stroke="url(#grad-line)" stroke-width="24" stroke-linecap="round"/>
+
+    <!-- Graph Nodes -->
+    <circle cx="160" cy="120" r="32" fill="#06B6D4"/>
+    <circle cx="160" cy="392" r="32" fill="#8B5CF6"/>
+    <circle cx="160" cy="256" r="32" fill="#4989E5"/> 
+    <circle cx="355" cy="256" r="32" fill="#6366F1"/> 
+
+    <!-- Inner tech dots -->
+    <circle cx="160" cy="120" r="12" fill="#FFFFFF"/>
+    <circle cx="160" cy="392" r="12" fill="#FFFFFF"/>
+    <circle cx="160" cy="256" r="12" fill="#FFFFFF"/>
+    <circle cx="355" cy="256" r="12" fill="#FFFFFF"/>
+  </g>
+</svg>

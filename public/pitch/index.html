@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DelegAI — Autonomous Agent Delegation Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --cyan:   #06b6d4;
+  --green:  #22c55e;
+  --amber:  #f59e0b;
+  --red:    #ef4444;
+  --violet: #8b5cf6;
+  --bg:     #050508;
+  --card:   rgba(13,17,23,0.75);
+  --border: rgba(6,182,212,0.18);
+  --text:   #e2e8f0;
+  --muted:  #64748b;
+}
+
+html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; }
+
+body::before {
+  content:''; position:fixed; inset:0; z-index:0;
+  background-image: linear-gradient(rgba(6,182,212,0.04) 1px,transparent 1px), linear-gradient(90deg,rgba(6,182,212,0.04) 1px,transparent 1px);
+  background-size:48px 48px; pointer-events:none;
+}
+body::after {
+  content:''; position:fixed; inset:0; z-index:0;
+  background: repeating-linear-gradient(to bottom,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
+  pointer-events:none;
+}
+
+#deck { position:relative; z-index:1; width:100vw; height:100vh; overflow:hidden; }
+
+/* ── Slides ── */
+.slide {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  justify-content:center; align-items:center;
+  padding:52px 72px 80px;
+  opacity:0; transform:translateX(60px);
+  transition:opacity .42s cubic-bezier(.4,0,.2,1), transform .42s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;
+}
+.slide.active  { opacity:1; transform:translateX(0); pointer-events:all; }
+.slide.exit-left { opacity:0; transform:translateX(-60px); }
+
+/* ── Nav ── */
+#nav { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:100; display:flex; align-items:center; gap:20px; }
+.nav-btn {
+  background:rgba(6,182,212,0.1); border:1px solid var(--border);
+  color:var(--cyan); font-family:'JetBrains Mono',monospace; font-size:13px;
+  padding:8px 22px; border-radius:4px; cursor:pointer;
+  transition:background .2s,border-color .2s; letter-spacing:.05em;
+}
+.nav-btn:hover { background:rgba(6,182,212,0.2); border-color:var(--cyan); }
+.nav-btn-play { border-color:rgba(34,197,94,0.3); color:var(--green); background:rgba(34,197,94,0.08); }
+.nav-btn-play:hover { background:rgba(34,197,94,0.18); border-color:var(--green); }
+.nav-btn-play.playing { border-color:rgba(245,158,11,0.4); color:var(--amber); background:rgba(245,158,11,0.1); }
+.nav-btn-play.playing:hover { background:rgba(245,158,20.2); border-color:var(--amber); }
+#auto-progress { position:fixed; bottom:72px; left:50%; transform:translateX(-50%); width:160px; height:2px; background:rgba(34,197,94,0.15); border-radius:2px; opacity:0; transition:opacity .3s; }
+#auto-progress-fill { height:100%; width:0%; background:var(--green); border-radius:2px; }
+#counter { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); min-width:60px; text-align:center; letter-spacing:.08em; }
+#progress-bar { position:fixed; top:0; left:0; z-index:100; height:2px; background:linear-gradient(90deg,var(--cyan),var(--violet)); transition:width .4s ease; }
+#slide-indicator { position:fixed; top:22px; right:30px; z-index:100; font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(6,182,212,0.5); letter-spacing:.1em; }
+#kbd-hint { position:fixed; top:22px; left:50%; transform:translateX(-50%); z-index:100; font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(100,116,139,0.45); letter-spacing:.1em; transition:opacity .5s; }
+
+/* ── Type ── */
+h2 { font-family:'Orbitron',sans-serif; font-weight:700; font-size:clamp(30px,3.8vw,48px); }
+h3 { font-family:'Orbitron',sans-serif; font-weight:400; }
+.orbitron { font-family:'Orbitron',sans-serif; }
+.mono { font-family:'JetBrains Mono',monospace; }
+.text-cyan   { color:var(--cyan); }
+.text-green  { color:var(--green); }
+.text-amber  { color:var(--amber); }
+.text-violet { color:var(--violet); }
+.text-red    { color:var(--red); }
+.text-muted  { color:var(--muted); }
+
+/* ── Glows ── */
+.glow-cyan   { text-shadow:0 0 20px rgba(6,182,212,0.6),0 0 60px rgba(6,182,212,0.2); }
+.glow-violet { text-shadow:0 0 20px rgba(139,92,246,0.6),0 0 60px rgba(139,92,246,0.2); }
+.glow-green  { text-shadow:0 0 20px rgba(34,197,94,0.6); }
+.box-glow-cyan   { box-shadow:0 0 0 1px rgba(6,182,212,0.3),0 0 28px rgba(6,182,212,0.08); }
+.box-glow-violet { box-shadow:0 0 0 1px rgba(139,92,246,0.3),0 0 28px rgba(139,92,246,0.08); }
+.box-glow-green  { box-shadow:0 0 0 1px rgba(34,197,94,0.25),0 0 28px rgba(34,197,94,0.06); }
+
+/* ── Card ── */
+.card { background:var(--card); border:1px solid var(--border); border-radius:8px; backdrop-filter:blur(12px); padding:22px 28px; }
+
+/* ── Badge ── */
+.badge { display:inline-flex; align-items:center; gap:6px; border-radius:4px; padding:5px 13px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; font-weight:500; }
+.badge-cyan   { background:rgba(6,182,212,0.12); border:1px solid rgba(6,182,212,0.3); color:var(--cyan); }
+.badge-violet { background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.3); color:var(--violet); }
+.badge-amber  { background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.3); color:var(--amber); }
+.badge-green  { background:rgba(34,197,94,0.12);  border:1px solid rgba(34,197,94,0.3);  color:var(--green); }
+
+/* ── Lucide icons ── */
+[data-lucide] { display:inline-block; vertical-align:middle; flex-shrink:0; }
+
+/* ── Pulse dot ── */
+@keyframes pulse-ring { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.2);opacity:0} }
+.pulse-dot { width:8px; height:8px; border-radius:50%; background:var(--green); position:relative; display:inline-block; box-shadow:0 0 6px var(--green); }
+.pulse-dot::after { content:''; position:absolute; inset:0; border-radius:50%; background:var(--green); animation:pulse-ring 1.4s ease-out infinite; }
+
+/* ── Cursor blink ── */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.cursor::after { content:'▋'; animation:blink 1s step-end infinite; color:var(--cyan); font-size:.85em; }
+
+/* ── Float ── */
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+/* ─────────────────────────────────────
+   SLIDE 1: TITLE
+───────────────────────────────────── */
+#s1 { gap:0; }
+#s1 .corner { position:absolute; width:60px; height:60px; border-color:var(--cyan); border-style:solid; opacity:.22; }
+#s1 .corner-tl { top:18px;left:18px; border-width:2px 0 0 2px; }
+#s1 .corner-tr { top:18px;right:18px; border-width:2px 2px 0 0; }
+#s1 .corner-bl { bottom:56px;left:18px; border-width:0 0 2px 2px; }
+#s1 .corner-br { bottom:56px;right:18px; border-width:0 2px 2px 0; }
+#s1 .hero-badge-row { display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap; justify-content:center; }
+#s1 .logo {
+  font-family:'Orbitron',sans-serif; font-weight:900;
+  font-size:clamp(56px,8vw,100px); letter-spacing:-.02em; line-height:1;
+  background:linear-gradient(135deg,var(--cyan) 30%,var(--violet));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter:drop-shadow(0 0 40px rgba(6,182,212,0.4));
+  animation:float 4s ease-in-out infinite; margin-bottom:18px;
+}
+#s1 .tagline { font-family:'Orbitron',sans-serif; font-size:clamp(13px,1.8vw,18px); letter-spacing:.25em; color:var(--cyan); text-transform:uppercase; margin-bottom:10px; opacity:.9; }
+#s1 .sub { font-size:16px; color:var(--muted); letter-spacing:.03em; margin-bottom:36px; max-width:540px; text-align:center; line-height:1.65; }
+#s1 .prize-row { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+.prize-chip { display:flex; align-items:center; gap:10px; background:rgba(13,17,23,0.85); border:1px solid rgba(6,182,212,0.22); border-radius:6px; padding:11px 20px; font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--text); }
+.prize-chip .amt { color:var(--amber); font-weight:700; font-size:15px; }
+
+/* ─────────────────────────────────────
+   SLIDE 2: PROBLEM
+───────────────────────────────────── */
+#s2 { gap:22px; width:100%; }
+.slide-label { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.15em; text-transform:uppercase; width:100%; max-width:920px; }
+#s2 .war-story {
+  background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2);
+  border-left:3px solid var(--red); border-radius:6px;
+  padding:20px 26px; font-size:16px; line-height:1.7; color:#cbd5e1; width:100%; max-width:920px;
+}
+#s2 .war-story .quote-head { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--red); letter-spacing:.1em; margin-bottom:10px; }
+#s2 .extremes { display:grid; grid-template-columns:1fr auto 1fr; gap:16px; align-items:center; width:100%; max-width:920px; }
+.extreme-card { border-radius:8px; padding:22px 26px; text-align:center; }
+.extreme-card.bad-left  { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); }
+.extreme-card.bad-right { background:rgba(100,116,139,0.08); border:1px solid rgba(100,116,139,0.2); }
+.extreme-card .xc-icon  { margin-bottom:12px; }
+.extreme-card .label { font-family:'Orbitron',sans-serif; font-size:12px; letter-spacing:.1em; margin-bottom:8px; }
+.extreme-card .desc  { font-size:14px; color:var(--muted); line-height:1.55; }
+.vs-divider { font-family:'Orbitron',sans-serif; font-size:22px; color:var(--muted); text-align:center; }
+#s2 .missing-card { width:100%; max-width:920px; text-align:center; }
+
+/* ─────────────────────────────────────
+   SLIDE 3: SOLUTION
+───────────────────────────────────── */
+#s3 { gap:22px; width:100%; }
+#s3 .headline { font-size:clamp(30px,3.8vw,48px); line-height:1.15; text-align:center; font-family:'Orbitron',sans-serif; font-weight:700; }
+#s3 .insight { text-align:center; font-size:16px; color:var(--muted); line-height:1.65; max-width:680px; }
+#s3 .insight strong { color:var(--cyan); }
+#s3 .pillars { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; width:100%; max-width:960px; }
+.pillar { background:var(--card); border-radius:8px; padding:24px 20px; border:1px solid var(--border); text-align:center; }
+.pillar .p-icon { margin-bottom:14px; display:flex; justify-content:center; }
+.pillar .p-title { font-family:'Orbitron',sans-serif; font-size:12px; letter-spacing:.08em; margin-bottom:10px; }
+.pillar .p-body  { font-size:14px; color:var(--muted); line-height:1.55; }
+#s3 .key-insight { background:rgba(6,182,212,0.06); border:1px solid rgba(6,182,212,0.2); border-left:3px solid var(--cyan); border-radius:6px; padding:18px 24px; font-size:16px; color:var(--text); line-height:1.6; width:100%; max-width:960px; }
+#s3 .key-insight .kl { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--cyan); letter-spacing:.1em; margin-bottom:6px; }
+
+/* ─────────────────────────────────────
+   SLIDE 4: HOW IT WORKS
+───────────────────────────────────── */
+#s4 { gap:20px; width:100%; }
+#s4 h2 { text-align:center; }
+#s4 .sub-head { font-size:14px; color:var(--muted); text-align:center; }
+.steps-row { display:flex; gap:0; width:100%; align-items:flex-start; }
+.step { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:22px 16px; text-align:center; position:relative; flex:1; }
+.step-num { font-family:'Orbitron',sans-serif; font-size:36px; font-weight:900; line-height:1; margin-bottom:10px; }
+.step-title { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:.06em; margin-bottom:10px; line-height:1.4; }
+.step-body { font-size:13px; color:var(--muted); line-height:1.55; }
+.step-tag { display:inline-block; font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.06em; padding:3px 8px; border-radius:3px; margin-top:12px; }
+.step-arrow { display:flex; align-items:center; padding:0 4px; padding-top:36px; color:rgba(6,182,212,0.35); font-size:18px; flex-shrink:0; }
+.flow-card { width:100%; padding:14px 22px; }
+.flow-card .mono { font-size:13px; color:var(--muted); }
+
+/* ─────────────────────────────────────
+   SLIDE 5: ARCHITECTURE
+───────────────────────────────────── */
+#s5 { gap:18px; width:100%; }
+#s5 h2 { text-align:center; }
+.tree-wrapper { width:100%; display:flex; flex-direction:column; align-items:center; }
+.tree-box { border-radius:8px; padding:16px 22px; text-align:center; min-width:170px; }
+.tree-box .tb-label { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:.07em; margin-bottom:6px; display:flex; align-items:center; justify-content:center; gap:6px; }
+.tree-box .tb-addr  { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); margin-bottom:8px; }
+.tree-box .tb-budget{ font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; }
+.tree-box .tb-calls { font-size:12px; color:var(--muted); margin-top:4px; }
+.tb-user   { background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.35); }
+.tb-master { background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.35); }
+.tb-worker { background:rgba(34,197,94,0.08);  border:1px solid rgba(34,197,94,0.35); }
+.caveat-list { margin-top:10px; display:flex; flex-direction:column; gap:4px; }
+.caveat-item { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); }
+.caveat-item .c-dot { margin-right:4px; }
+.connector-v { width:2px; height:22px; background:linear-gradient(to bottom,rgba(6,182,212,0.5),rgba(139,92,246,0.5)); margin:0 auto; }
+.worker-row { display:flex; gap:48px; }
+#s5 .legend { display:flex; gap:24px; justify-content:center; flex-wrap:wrap; }
+.legend-item { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+.legend-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+/* ─────────────────────────────────────
+   SLIDE 6: TECHNOLOGY
+───────────────────────────────────── */
+#s6 { gap:22px; width:100%; }
+#s6 h2 { text-align:center; }
+.tech-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; width:100%; max-width:1040px; }
+.tech-col { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:22px; display:flex; flex-direction:column; gap:14px; }
+.tech-col-header { display:flex; align-items:center; gap:14px; }
+.tech-col-name { font-family:'Orbitron',sans-serif; font-size:13px; letter-spacing:.07em; }
+.tech-col-sub  { font-size:12px; color:var(--muted); margin-top:3px; }
+.tech-apis { display:flex; flex-direction:column; gap:7px; }
+.tech-api-item {
+  display:flex; align-items:flex-start; gap:8px;
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  color:var(--muted); line-height:1.45;
+}
+.tech-api-item svg { margin-top:1px; flex-shrink:0; }
+.api-count-badge {
+  margin-top:auto; padding:9px 14px; border-radius:6px;
+  font-family:'JetBrains Mono',monospace; font-size:12px; text-align:center;
+}
+.api-count-badge.cyan   { background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.2); color:var(--cyan); }
+.api-count-badge.green  { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); color:var(--green); }
+.api-count-badge.violet { background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); color:var(--violet); }
+
+/* ─────────────────────────────────────
+   SLIDE 7: PRIZE TRACKS
+───────────────────────────────────── */
+#s7 { gap:22px; width:100%; }
+#s7 h2 { text-align:center; }
+.tracks-table { width:100%; max-width:900px; border-collapse:separate; border-spacing:0 7px; }
+.tracks-table thead th { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em; color:var(--muted); text-align:left; padding:0 16px 6px; text-transform:uppercase; }
+.tracks-table tbody tr { background:var(--card); }
+.tracks-table tbody td { padding:14px 16px; font-size:14px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.tracks-table tbody td:first-child { border-left:1px solid var(--border); border-radius:8px 0 0 8px; font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:.05em; }
+.tracks-table tbody td:last-child { border-right:1px solid var(--border); border-radius:0 8px 8px 0; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:15px; color:var(--amber); }
+.track-highlight { border-color:rgba(6,182,212,0.35) !important; }
+.check-cell { display:inline-flex; align-items:center; gap:7px; }
+.odds-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-family:'JetBrains Mono',monospace; font-size:10px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.25); color:var(--green); white-space:nowrap; }
+#s7 .ev-card { width:100%; max-width:900px; }
+
+/* ─────────────────────────────────────
+   SLIDE 8: COMPETITIVE EDGE
+───────────────────────────────────── */
+#s8 { gap:20px; width:100%; }
+#s8 h2 { text-align:center; }
+.edges-grid { display:grid; grid-template-columns:1fr 1fr; gap:13px; width:100%; max-width:960px; }
+.edge-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px; display:flex; gap:16px; align-items:flex-start; }
+.edge-num { font-family:'Orbitron',sans-serif; font-size:32px; font-weight:900; color:rgba(6,182,212,0.18); line-height:1; flex-shrink:0; min-width:40px; }
+.edge-content .e-title { font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:.06em; margin-bottom:7px; }
+.edge-content .e-body  { font-size:13px; color:var(--muted); line-height:1.55; }
+.edge-content .e-body strong { color:var(--cyan); }
+.edge-card-wide { grid-column:1/-1; }
+.sdk-apis-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.sdk-pill { font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 9px; border-radius:3px; background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.18); color:var(--cyan); }
+
+/* ─────────────────────────────────────
+   SLIDE 9: LIVE DEMO
+───────────────────────────────────── */
+#s9 { gap:20px; width:100%; }
+#s9 h2 { text-align:center; }
+.demo-layout { display:grid; grid-template-columns:1fr 1fr; gap:18px; width:100%; max-width:980px; }
+.demo-terminal { background:#0a0e14; border:1px solid rgba(6,182,212,0.2); border-radius:8px; overflow:hidden; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.7; }
+.terminal-bar { background:rgba(6,182,212,0.06); border-bottom:1px solid rgba(6,182,212,0.12); padding:9px 14px; display:flex; align-items:center; gap:8px; }
+.t-dot { width:9px; height:9px; border-radius:50%; }
+.t-title { font-size:10px; color:var(--muted); letter-spacing:.08em; margin-left:6px; }
+.terminal-body { padding:14px; }
+.t-line { display:flex; gap:8px; margin-bottom:2px; }
+.t-prompt { color:var(--cyan); flex-shrink:0; }
+.t-ok     { color:var(--green); flex-shrink:0; }
+.t-warn   { color:var(--amber); flex-shrink:0; }
+.t-dim    { color:var(--muted); }
+.demo-info-col { display:flex; flex-direction:column; gap:12px; }
+.demo-stat { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px 20px; }
+.ds-label { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.1em; margin-bottom:6px; }
+.ds-value { font-family:'Orbitron',sans-serif; font-size:26px; font-weight:700; }
+.ds-sub   { font-size:13px; color:var(--muted); margin-top:4px; }
+.live-badge { display:inline-flex; align-items:center; gap:10px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:6px; padding:11px 18px; font-family:'JetBrains Mono',monospace; font-size:14px; color:var(--green); }
+.demo-url-box { background:var(--card); border:1px solid rgba(6,182,212,0.2); border-radius:8px; padding:14px 18px; }
+.demo-url { font-family:'JetBrains Mono',monospace; font-size:20px; color:var(--cyan); letter-spacing:.03em; }
+
+/* ─────────────────────────────────────
+   SLIDE 10: CTA
+───────────────────────────────────── */
+#s10 { gap:0; }
+#s10 .corner { position:absolute; width:60px; height:60px; border-color:var(--cyan); border-style:solid; opacity:.2; }
+#s10 .corner-tl { top:18px;left:18px; border-width:2px 0 0 2px; }
+#s10 .corner-tr { top:18px;right:18px; border-width:2px 2px 0 0; }
+#s10 .corner-bl { bottom:56px;left:18px; border-width:0 0 2px 2px; }
+#s10 .corner-br { bottom:56px;right:18px; border-width:0 2px 2px 0; }
+#s10 .cta-logo { font-family:'Orbitron',sans-serif; font-weight:900; font-size:clamp(42px,6vw,76px); background:linear-gradient(135deg,var(--cyan) 30%,var(--violet)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; filter:drop-shadow(0 0 30px rgba(6,182,212,0.4)); margin-bottom:14px; }
+#s10 .cta-tagline { font-size:17px; color:var(--muted); margin-bottom:36px; letter-spacing:.03em; text-align:center; }
+#s10 .cta-links { display:flex; flex-direction:column; gap:10px; align-items:center; margin-bottom:28px; }
+.cta-link { display:flex; align-items:center; gap:14px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:14px 28px; font-family:'JetBrains Mono',monospace; color:var(--text); text-decoration:none; width:400px; justify-content:flex-start; transition:border-color .2s,background .2s; }
+.cta-link:hover { border-color:var(--cyan); background:rgba(6,182,212,0.06); }
+.cta-link .lk-label { color:var(--muted); font-size:11px; display:block; margin-bottom:2px; }
+.cta-link .lk-url   { color:var(--cyan); font-size:14px; display:block; }
+#s10 .hackathon-footer { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); letter-spacing:.07em; text-align:center; }
+#s10 .hackathon-footer strong { color:rgba(6,182,212,0.6); }
+
+@media (max-width:768px) {
+  .slide { padding:32px 24px 72px; }
+  .steps-row,#s2 .extremes,.tech-grid,.demo-layout,.edges-grid { grid-template-columns:1fr; flex-direction:column; }
+  .worker-row { flex-direction:column; align-items:center; }
+  .cta-link { width:100%; }
+}
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div id="slide-indicator">01 / 10</div>
+<div id="kbd-hint">← → ARROW KEYS TO NAVIGATE</div>
+
+<div id="deck">
+
+<!-- ══════════════════════════════
+     SLIDE 1: TITLE
+══════════════════════════════ -->
+<section class="slide active" id="s1">
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <div class="hero-badge-row">
+    <span class="badge badge-cyan">MetaMask Smart Accounts Kit</span>
+    <span class="badge badge-violet">1Shot API</span>
+    <span class="badge badge-amber">x402 Protocol</span>
+  </div>
+
+  <div class="logo">DelegAI</div>
+  <div class="tagline">Autonomous Agent Delegation Network</div>
+  <div class="sub">The first trustless Machine-to-Machine delegation economy — where AI agents hire, scope, and pay each other with cryptographic spending guarantees.</div>
+
+  <div class="prize-row">
+    <div class="prize-chip">
+      <i data-lucide="trophy" width="18" height="18" style="color:var(--amber)"></i>
+      <span>Best A2A Coordination</span>
+      <span class="amt">$1,500</span>
+    </div>
+    <div class="prize-chip">
+      <i data-lucide="bot" width="18" height="18" style="color:var(--violet)"></i>
+      <span>Best Agent</span>
+      <span class="amt">$1,500</span>
+    </div>
+    <div class="prize-chip">
+      <i data-lucide="zap" width="18" height="18" style="color:var(--cyan)"></i>
+      <span>Best x402 / ERC-7710</span>
+      <span class="amt">$1,500</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 2: PROBLEM
+══════════════════════════════ -->
+<section class="slide" id="s2">
+  <div class="slide-label" style="color:var(--red)">// THE PROBLEM</div>
+  <h2 style="max-width:920px;width:100%;">AI Agents Have a <span class="text-red">Trust Crisis</span></h2>
+
+  <div class="war-story">
+    <div class="quote-head">// INCIDENT REPORT — REAL SCENARIO</div>
+    A solo AI researcher ran 6 agent bots fetching market data and processing images.
+    One midnight bug caused Bot #4 to loop its API calls.
+    <strong style="color:#ef4444"> By morning, the entire $500 USDC research budget was gone.</strong>
+    There was no way to limit what individual bots could spend.
+  </div>
+
+  <div class="extremes">
+    <div class="extreme-card bad-left">
+      <div class="xc-icon"><i data-lucide="key" width="40" height="40" style="color:var(--red)"></i></div>
+      <div class="label" style="color:var(--red)">FULL WALLET ACCESS</div>
+      <div class="desc">One bug or prompt injection — entire balance drained overnight.</div>
+    </div>
+    <div class="vs-divider">VS</div>
+    <div class="extreme-card bad-right">
+      <div class="xc-icon"><i data-lucide="lock" width="40" height="40" style="color:var(--muted)"></i></div>
+      <div class="label" style="color:var(--muted)">NO ACCESS AT ALL</div>
+      <div class="desc">Agent can't act autonomously. Humans must approve every action.</div>
+    </div>
+  </div>
+
+  <div class="card missing-card" style="text-align:center;padding:18px 28px;">
+    <div style="font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:.08em;color:var(--amber);margin-bottom:8px;">THE MISSING PRIMITIVE</div>
+    <div style="font-size:15px;color:var(--text);">
+      There is no way to say <span style="color:var(--cyan);font-family:'JetBrains Mono',monospace;">"spend up to $10, only on these 2 APIs, only twice"</span> to an autonomous agent.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 3: SOLUTION
+══════════════════════════════ -->
+<section class="slide" id="s3">
+  <h2 class="headline">
+    <span class="text-cyan glow-cyan">Scoped</span> · <span class="text-violet">Cryptographic</span> · <span class="text-green">Trustless</span>
+  </h2>
+  <div class="insight">
+    DelegAI introduces <strong>hierarchical delegation chains</strong> — one MetaMask permission grants scoped spending authority that cascades through agent layers, with each child <strong>mathematically unable to exceed its parent's limits</strong>.
+  </div>
+
+  <div class="pillars">
+    <div class="pillar">
+      <div class="p-icon"><i data-lucide="target" width="40" height="40" style="color:var(--cyan)"></i></div>
+      <div class="p-title text-cyan">ONE PERMISSION</div>
+      <div class="p-body">User signs once. MetaMask ERC-7715 Advanced Permissions popup. 50 USDC · 5 calls · 24h expiry.</div>
+    </div>
+    <div class="pillar">
+      <div class="p-icon"><i data-lucide="git-merge" width="40" height="40" style="color:var(--violet)"></i></div>
+      <div class="p-title text-violet">REDELEGATION CHAINS</div>
+      <div class="p-body">Master Agent splits authority into sub-delegations. Workers receive narrower child scopes — cryptographically enforced.</div>
+    </div>
+    <div class="pillar">
+      <div class="p-icon"><i data-lucide="zap" width="40" height="40" style="color:var(--green)"></i></div>
+      <div class="p-title text-green">M2M PAYMENTS</div>
+      <div class="p-body">Workers autonomously pay for APIs via x402 micropayments and execute gaslessly via 1Shot — no ETH needed.</div>
+    </div>
+  </div>
+
+  <div class="key-insight">
+    <div class="kl">// KEY INSIGHT</div>
+    <strong class="text-cyan">Adding more agents makes the system SAFER, not riskier.</strong>
+    Each delegation narrows scope further — constrained growth means the blast radius of any agent failure is bounded by cryptography, not trust.
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 4: HOW IT WORKS
+══════════════════════════════ -->
+<section class="slide" id="s4">
+  <h2>How It <span class="text-cyan">Works</span></h2>
+  <div class="sub-head">End-to-end in under 60 seconds</div>
+
+  <div class="steps-row" style="width:100%;max-width:1000px;">
+    <div class="step">
+      <div class="step-num text-cyan">01</div>
+      <div class="step-title text-cyan">ROOT PERMISSION</div>
+      <div class="step-body">User clicks "Start Delegation". MetaMask popup grants scoped authority.</div>
+      <div class="step-tag badge badge-cyan">ERC-7715</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num text-violet">02</div>
+      <div class="step-title text-violet">REDELEGATION</div>
+      <div class="step-body">Master Agent creates sub-delegations for Data Worker &amp; Exec Worker.</div>
+      <div class="step-tag badge badge-violet">parentDelegation</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num text-amber">03</div>
+      <div class="step-title text-amber">x402 PAYMENT</div>
+      <div class="step-body">Data Worker hits API, gets 402. Constructs PAYMENT-SIGNATURE, retries with proof.</div>
+      <div class="step-tag badge badge-amber">0.01 USDC/call</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num text-green">04</div>
+      <div class="step-title text-green">GASLESS RELAY</div>
+      <div class="step-body">Exec Worker submits UserOp via 1Shot. Gas paid in USDC — no ETH required.</div>
+      <div class="step-tag badge badge-green">1Shot Relay</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step">
+      <div class="step-num text-violet">05</div>
+      <div class="step-title text-violet">SETTLEMENT</div>
+      <div class="step-body">Live delegation tree, budget meters, SSE activity feed. Full chain &lt;30s.</div>
+      <div class="step-tag badge badge-violet">Live Dashboard</div>
+    </div>
+  </div>
+
+  <div class="card flow-card" style="width:100%;max-width:1000px;">
+    <div class="mono" style="font-size:13px;color:var(--muted);">
+      <span style="color:var(--cyan);">User</span>
+      <span style="color:rgba(6,182,212,0.4);margin:0 8px;">──[50 USDC · 5 calls]──▶</span>
+      <span style="color:var(--violet);">Master Agent</span>
+      <span style="color:rgba(139,92,246,0.4);margin:0 8px;">──[10 USDC · 2 calls]──▶</span>
+      <span style="color:var(--green);">Data Worker</span>
+      <span style="color:rgba(100,116,139,0.4);margin:0 6px;">+</span>
+      <span style="color:var(--green);">Exec Worker</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 5: ARCHITECTURE
+══════════════════════════════ -->
+<section class="slide" id="s5">
+  <h2>Delegation <span class="text-violet">Architecture</span></h2>
+
+  <div class="tree-wrapper">
+    <!-- Level 1 -->
+    <div style="display:flex;justify-content:center;">
+      <div class="tree-box tb-user">
+        <div class="tb-label text-cyan">
+          <i data-lucide="user" width="14" height="14" style="color:var(--cyan)"></i>
+          USER (EOA)
+        </div>
+        <div class="tb-addr">Alice · Sepolia</div>
+        <div class="tb-budget text-cyan">50 USDC</div>
+        <div class="tb-calls">5 calls max · 24h expiry</div>
+        <div class="caveat-list">
+          <div class="caveat-item"><span class="c-dot" style="color:var(--cyan)">◆</span>LimitedCalls: 5</div>
+          <div class="caveat-item"><span class="c-dot" style="color:var(--cyan)">◆</span>Erc20TransferAmount: 50 USDC</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector-v"></div>
+
+    <!-- Level 2 -->
+    <div style="display:flex;justify-content:center;">
+      <div class="tree-box tb-master" style="min-width:210px;">
+        <div class="tb-label text-violet">
+          <i data-lucide="cpu" width="14" height="14" style="color:var(--violet)"></i>
+          MASTER AGENT
+        </div>
+        <div class="tb-addr">Smart Account</div>
+        <div class="tb-budget text-violet">20 USDC</div>
+        <div class="tb-calls">4 calls max · sub-scoped</div>
+        <div class="caveat-list">
+          <div class="caveat-item"><span class="c-dot" style="color:var(--violet)">◆</span>LimitedCalls: 4</div>
+          <div class="caveat-item"><span class="c-dot" style="color:var(--violet)">◆</span>Redeemer: ExecWorker addr</div>
+          <div class="caveat-item"><span class="c-dot" style="color:var(--violet)">◆</span>parentDelegation: hash</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Branch connectors -->
+    <div style="position:relative;width:500px;height:30px;flex-shrink:0;">
+      <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:15px;background:rgba(139,92,246,0.5);"></div>
+      <div style="position:absolute;top:15px;left:calc(50% - 130px);width:260px;height:2px;background:linear-gradient(90deg,rgba(34,197,94,0.5),rgba(139,92,246,0.4),rgba(34,197,94,0.5));"></div>
+      <div style="position:absolute;bottom:0;left:calc(50% - 130px);width:2px;height:15px;background:rgba(34,197,94,0.5);"></div>
+      <div style="position:absolute;bottom:0;left:calc(50% + 128px);width:2px;height:15px;background:rgba(34,197,94,0.5);"></div>
+    </div>
+
+    <!-- Level 3 -->
+    <div class="worker-row">
+      <div class="tree-box tb-worker">
+        <div class="tb-label text-green">
+          <i data-lucide="bar-chart-2" width="14" height="14" style="color:var(--green)"></i>
+          DATA WORKER
+        </div>
+        <div class="tb-addr">Smart Account</div>
+        <div class="tb-budget text-green">10 USDC</div>
+        <div class="tb-calls">2 calls · x402 buyer</div>
+        <div class="caveat-list">
+          <div class="caveat-item"><span class="c-dot" style="color:var(--green)">◆</span>LimitedCalls: 2</div>
+          <div class="caveat-item"><span class="c-dot" style="color:var(--green)">◆</span>Erc20TransferAmount: 10 USDC</div>
+        </div>
+      </div>
+      <div class="tree-box tb-worker">
+        <div class="tb-label text-green">
+          <i data-lucide="send" width="14" height="14" style="color:var(--green)"></i>
+          EXEC WORKER
+        </div>
+        <div class="tb-addr">Smart Account</div>
+        <div class="tb-budget text-green">10 USDC</div>
+        <div class="tb-calls">2 calls · 1Shot gasless</div>
+        <div class="caveat-list">
+          <div class="caveat-item"><span class="c-dot" style="color:var(--green)">◆</span>LimitedCalls: 2</div>
+          <div class="caveat-item"><span class="c-dot" style="color:var(--green)">◆</span>Erc20TransferAmount: 10 USDC</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Root authority (User EOA)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--violet)"></div>Sub-delegation (Master)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Leaf agents (Workers)</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 6: TECHNOLOGY
+══════════════════════════════ -->
+<section class="slide" id="s6">
+  <h2>Technology <span class="text-cyan">Stack</span></h2>
+
+  <div class="tech-grid">
+
+    <!-- MetaMask -->
+    <div class="tech-col box-glow-cyan">
+      <div class="tech-col-header">
+        <i data-lucide="shield-check" width="30" height="30" style="color:var(--cyan)"></i>
+        <div>
+          <div class="tech-col-name text-cyan">MetaMask Smart Accounts Kit</div>
+          <div class="tech-col-sub">v1.5.x · 12 distinct APIs</div>
+        </div>
+      </div>
+      <div class="tech-apis">
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          toMetaMaskSmartAccount()
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          createDelegation() + createOpenDelegation()
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          signDelegation() + redeemDelegations()
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          createCaveatBuilder() — 3 caveat types
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          hashDelegation() + encodeDelegations()
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          requestExecutionPermissions() [ERC-7715]
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          sendUserOperationWithDelegation()
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--cyan)"></i>
+          erc7710BundlerActions() + erc7715ProviderActions()
+        </div>
+      </div>
+      <div class="api-count-badge cyan">12 / 12 SDK APIs integrated</div>
+    </div>
+
+    <!-- x402 -->
+    <div class="tech-col box-glow-violet">
+      <div class="tech-col-header">
+        <i data-lucide="credit-card" width="30" height="30" style="color:var(--violet)"></i>
+        <div>
+          <div class="tech-col-name text-violet">x402 Protocol</div>
+          <div class="tech-col-sub">@x402/express · @x402/evm · @x402/core</div>
+        </div>
+      </div>
+      <div class="tech-apis">
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          <strong style="color:var(--text)">Seller side</strong> — paymentMiddleware()
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          Erc7710ExactEvmScheme validation
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          HTTPFacilitatorClient ↔ MetaMask
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          <strong style="color:var(--text)">Buyer side</strong> — PAYMENT-SIGNATURE header
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          createOpenDelegation() for payment
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          Redeemer caveat → facilitator only
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--violet)"></i>
+          Autonomous 402 → pay → 200 retry loop
+        </div>
+      </div>
+      <div class="api-count-badge violet">Both buyer AND seller implemented</div>
+    </div>
+
+    <!-- 1Shot -->
+    <div class="tech-col box-glow-green">
+      <div class="tech-col-header">
+        <i data-lucide="radio" width="30" height="30" style="color:var(--green)"></i>
+        <div>
+          <div class="tech-col-name text-green">1Shot Public Relayer</div>
+          <div class="tech-col-sub">JSON-RPC · Gasless on Sepolia</div>
+        </div>
+      </div>
+      <div class="tech-apis">
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--green)"></i>
+          relayer_getFeeData — Gas quote in USDC
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--green)"></i>
+          relayer_send7710Transaction — Bundle submit
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--green)"></i>
+          relayer_getStatus — Completion polling
+        </div>
+        <div class="tech-api-item" style="margin-top:6px;">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--green)"></i>
+          No ETH required for agents
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--green)"></i>
+          Gas paid from delegated USDC budget
+        </div>
+        <div class="tech-api-item">
+          <i data-lucide="chevron-right" width="13" height="13" style="color:var(--green)"></i>
+          On-chain settlement in &lt;30 seconds
+        </div>
+      </div>
+      <div class="api-count-badge green">3 relay methods · full tx lifecycle</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 7: PRIZE TRACKS
+══════════════════════════════ -->
+<section class="slide" id="s7">
+  <h2>Prize <span class="text-amber">Tracks</span></h2>
+
+  <table class="tracks-table">
+    <thead>
+      <tr>
+        <th>Track</th>
+        <th>Why We Qualify</th>
+        <th>Win Odds</th>
+        <th>Prize</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="track-highlight" style="border-left-color:var(--cyan);">
+          <span class="check-cell">
+            <i data-lucide="circle-check" width="14" height="14" style="color:var(--green)"></i>
+            Best A2A Coordination
+          </span>
+        </td>
+        <td>3-level redelegation — hardest feature, fewest competitors</td>
+        <td><span class="odds-pill">30–60%</span></td>
+        <td>$1,500</td>
+      </tr>
+      <tr>
+        <td>
+          <span class="check-cell">
+            <i data-lucide="circle-check" width="14" height="14" style="color:var(--green)"></i>
+            Best Agent
+          </span>
+        </td>
+        <td>Autonomous agents discover, purchase, and execute on-chain</td>
+        <td><span class="odds-pill">12–20%</span></td>
+        <td>$1,500</td>
+      </tr>
+      <tr>
+        <td>
+          <span class="check-cell">
+            <i data-lucide="circle-check" width="14" height="14" style="color:var(--green)"></i>
+            Best x402 / ERC-7710
+          </span>
+        </td>
+        <td>Full buyer + seller implementation, not just one side</td>
+        <td><span class="odds-pill">20–37%</span></td>
+        <td>$1,500</td>
+      </tr>
+      <tr>
+        <td>
+          <span class="check-cell">
+            <i data-lucide="circle-check" width="14" height="14" style="color:var(--green)"></i>
+            Social Media Posts
+          </span>
+        </td>
+        <td>Dev journey posts @MetaMaskDev throughout build</td>
+        <td><span class="odds-pill">17–50%</span></td>
+        <td>$100×n</td>
+      </tr>
+      <tr>
+        <td>
+          <span class="check-cell">
+            <i data-lucide="circle-check" width="14" height="14" style="color:var(--green)"></i>
+            SDK Feedback
+          </span>
+        </td>
+        <td>Comprehensive feedback document submitted with entry</td>
+        <td><span class="odds-pill">High</span></td>
+        <td>$100</td>
+      </tr>
+      <tr>
+        <td colspan="3" style="border:none;font-family:'Orbitron',sans-serif;font-size:12px;color:var(--muted);text-align:right;padding-right:24px;letter-spacing:.08em;">TOTAL POTENTIAL</td>
+        <td style="border-top:none;border-bottom:none;border-right:none;color:var(--amber);font-size:24px;font-weight:900;font-family:'Orbitron',sans-serif;">$4,600+</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card ev-card" style="padding:16px 24px;">
+    <div style="display:flex;align-items:center;gap:14px;font-size:14px;color:var(--text);">
+      <i data-lucide="target" width="22" height="22" style="color:var(--cyan);flex-shrink:0;"></i>
+      <div>
+        <strong class="text-cyan">Highest EV:</strong> A2A Coordination —
+        redelegation creates a natural technical moat. Fewest teams expected to implement the full chain.
+        <span style="color:var(--muted);font-size:13px;"> Competing in 5/5 available tracks.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 8: COMPETITIVE EDGE
+══════════════════════════════ -->
+<section class="slide" id="s8">
+  <h2>Why <span class="text-cyan">We Win</span></h2>
+
+  <div class="edges-grid">
+    <div class="edge-card" style="border-color:rgba(6,182,212,0.25);">
+      <div class="edge-num">01</div>
+      <div class="edge-content">
+        <div class="e-title text-cyan">DEEPEST TECHNICAL IMPLEMENTATION</div>
+        <div class="e-body">12 MetaMask SDK APIs, <strong>3-level redelegation chain</strong>, x402 buyer + seller, all 3 1Shot relay methods. No other project is expected to implement this breadth.</div>
+      </div>
+    </div>
+    <div class="edge-card">
+      <div class="edge-num">02</div>
+      <div class="edge-content">
+        <div class="e-title text-violet">NOVEL INTEGRATION PATTERN</div>
+        <div class="e-body">No prior tutorial combines <strong>redelegation + x402 + agent orchestration</strong>. DelegAI creates the reference implementation for M2M delegation.</div>
+      </div>
+    </div>
+    <div class="edge-card">
+      <div class="edge-num">03</div>
+      <div class="edge-content">
+        <div class="e-title text-amber">CONSTRAINED GROWTH INSIGHT</div>
+        <div class="e-body">Reframes redelegation as a <strong>safety mechanism</strong>, not just coordination. More agents = narrower blast radius. A compelling narrative judges remember.</div>
+      </div>
+    </div>
+    <div class="edge-card">
+      <div class="edge-num">04</div>
+      <div class="edge-content">
+        <div class="e-title text-green">PRODUCTION QUALITY</div>
+        <div class="e-body">TypeScript strict mode, <strong>100% CI passing</strong>, 50+ unit tests, live Vercel deployment, real-time dashboard — not just a script in a README.</div>
+      </div>
+    </div>
+    <div class="edge-card edge-card-wide">
+      <div class="edge-num">05</div>
+      <div class="edge-content">
+        <div class="e-title text-cyan">FULL SDK SURFACE COVERAGE</div>
+        <div class="e-body" style="margin-bottom:10px;">Every MetaMask Smart Accounts Kit API integrated — judges can see the breadth at a glance.</div>
+        <div class="sdk-apis-row">
+          <span class="sdk-pill">toMetaMaskSmartAccount</span>
+          <span class="sdk-pill">createDelegation</span>
+          <span class="sdk-pill">createOpenDelegation</span>
+          <span class="sdk-pill">signDelegation</span>
+          <span class="sdk-pill">redeemDelegations</span>
+          <span class="sdk-pill">createCaveatBuilder</span>
+          <span class="sdk-pill">encodeDelegations</span>
+          <span class="sdk-pill">hashDelegation</span>
+          <span class="sdk-pill">requestExecutionPermissions</span>
+          <span class="sdk-pill">sendUserOperationWithDelegation</span>
+          <span class="sdk-pill">erc7710BundlerActions</span>
+          <span class="sdk-pill">erc7715ProviderActions</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 9: LIVE DEMO
+══════════════════════════════ -->
+<section class="slide" id="s9">
+  <h2>Live <span class="text-green">Demo</span></h2>
+
+  <div class="demo-layout">
+    <div class="demo-terminal">
+      <div class="terminal-bar">
+        <div class="t-dot" style="background:#ef4444;"></div>
+        <div class="t-dot" style="background:#f59e0b;"></div>
+        <div class="t-dot" style="background:#22c55e;"></div>
+        <div class="t-title">DELEGAI — COMMAND CENTER</div>
+      </div>
+      <div class="terminal-body">
+        <div class="t-line"><span class="t-prompt">$</span><span style="color:var(--text)"> delegai start --demo --track=a2a</span></div>
+        <div class="t-line"><span class="t-ok">✓</span><span class="t-dim"> Root delegation created</span></div>
+        <div class="t-line"><span class="t-dim">  ├─ budget:</span><span style="color:var(--cyan)"> 50 USDC</span></div>
+        <div class="t-line"><span class="t-dim">  ├─ calls:</span><span style="color:var(--cyan)"> 5 max</span></div>
+        <div class="t-line"><span class="t-dim">  └─ caveats: LimitedCalls + Erc20TransferAmount</span></div>
+        <div class="t-line" style="margin-top:5px;"><span class="t-ok">✓</span><span class="t-dim"> Data Worker sub-delegation</span></div>
+        <div class="t-line"><span class="t-dim">  └─</span><span style="color:var(--violet)"> parentDelegation: 0x7f3a…</span></div>
+        <div class="t-line" style="margin-top:5px;"><span class="t-warn">⟳</span><span class="t-dim"> Data Worker → GET /api/premium-data</span></div>
+        <div class="t-line"><span class="t-dim">  ← 402 PAYMENT-REQUIRED</span></div>
+        <div class="t-line"><span class="t-ok">✓</span><span class="t-dim"> Payment header constructed</span></div>
+        <div class="t-line"><span class="t-dim">  ← 200 OK · charged 0.01 USDC</span></div>
+        <div class="t-line" style="margin-top:5px;"><span class="t-warn">⟳</span><span class="t-dim"> relayer_getFeeData… 0.0008 USDC</span></div>
+        <div class="t-line"><span class="t-warn">⟳</span><span class="t-dim"> relayer_send7710Transaction…</span></div>
+        <div class="t-line"><span class="t-ok">✓</span><span class="t-dim"> txHash: 0x9c2b…</span></div>
+        <div class="t-line" style="margin-top:5px;"><span class="t-ok">✓</span><span class="t-dim"> Chain settled · 10.012 / 50 USDC used</span></div>
+        <div class="t-line"><span class="t-prompt">$</span><span class="cursor"> </span></div>
+      </div>
+    </div>
+
+    <div class="demo-info-col">
+      <div class="demo-stat">
+        <div class="ds-label">DELEGATION DEPTH</div>
+        <div class="ds-value text-cyan">3 Levels</div>
+        <div class="ds-sub">User → Master → [Data, Exec] Workers</div>
+      </div>
+      <div class="demo-stat">
+        <div class="ds-label">END-TO-END TIME</div>
+        <div class="ds-value text-green">&lt; 30s</div>
+        <div class="ds-sub">Permission grant to on-chain settlement</div>
+      </div>
+      <div class="demo-stat">
+        <div class="ds-label">ETH REQUIRED</div>
+        <div class="ds-value text-violet">Zero</div>
+        <div class="ds-sub">Gas paid in USDC via 1Shot relay</div>
+      </div>
+      <div class="live-badge">
+        <span class="pulse-dot"></span>
+        LIVE on Sepolia Testnet
+      </div>
+      <div class="demo-url-box">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:6px;letter-spacing:.1em;">DEMO URL</div>
+        <div class="demo-url">delegai.edycu.dev</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">DELEGAI_DEMO=true — no wallet needed</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════
+     SLIDE 10: CTA
+══════════════════════════════ -->
+<section class="slide" id="s10">
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <div class="cta-logo">DelegAI</div>
+  <div class="cta-tagline">The first trustless Machine-to-Machine delegation economy.</div>
+
+  <div class="cta-links">
+    <a href="https://delegai.edycu.dev" class="cta-link" target="_blank" rel="noopener">
+      <i data-lucide="globe" width="22" height="22" style="color:var(--cyan)"></i>
+      <div>
+        <span class="lk-label">LIVE DEMO</span>
+        <span class="lk-url">delegai.edycu.dev</span>
+      </div>
+    </a>
+    <a href="https://github.com/edycu/delegai" class="cta-link" target="_blank" rel="noopener">
+      <i data-lucide="github" width="22" height="22" style="color:var(--cyan)"></i>
+      <div>
+        <span class="lk-label">SOURCE CODE</span>
+        <span class="lk-url">github.com/edycu/delegai</span>
+      </div>
+    </a>
+    <a href="https://www.hackquest.io" class="cta-link" target="_blank" rel="noopener">
+      <i data-lucide="external-link" width="22" height="22" style="color:var(--amber)"></i>
+      <div>
+        <span class="lk-label">HACKATHON</span>
+        <span class="lk-url" style="color:var(--amber)">HackQuest · MetaMask × 1Shot</span>
+      </div>
+    </a>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:24px;">
+    <span class="badge badge-cyan">12 SDK APIs</span>
+    <span class="badge badge-violet">x402 Buyer + Seller</span>
+    <span class="badge badge-green">1Shot Gasless Relay</span>
+    <span class="badge badge-amber">3-Level Delegation</span>
+  </div>
+
+  <div class="hackathon-footer">
+    <strong>MetaMask Smart Accounts Kit × 1Shot API Dev Cook Off</strong> · HackQuest 2026<br/>
+    Built by Edy Cu · Targeting $4,600+ across 5 tracks
+  </div>
+</section>
+
+</div>
+
+<!-- ── Auto-play progress ── -->
+<div id="auto-progress"><div id="auto-progress-fill"></div></div>
+
+<!-- ── Nav ── -->
+<div id="nav">
+  <button class="nav-btn" id="btn-prev">← PREV</button>
+  <button class="nav-btn nav-btn-play" id="btn-auto" title="Auto-play (5s per slide)">▶ AUTO</button>
+  <div id="counter">01 / 10</div>
+  <button class="nav-btn" id="btn-next">NEXT →</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+lucide.createIcons({ attrs: { 'stroke-width': '1.5' } });
+
+(function () {
+  const slides      = document.querySelectorAll('.slide');
+  const counter     = document.getElementById('counter');
+  const indicator   = document.getElementById('slide-indicator');
+  const progressBar = document.getElementById('progress-bar');
+  const hint        = document.getElementById('kbd-hint');
+  const btnAuto     = document.getElementById('btn-auto');
+  const autoBar     = document.getElementById('auto-progress');
+  const autoFill    = document.getElementById('auto-progress-fill');
+  const total       = slides.length;
+  const SLIDE_MS    = 5000; // ms per slide in auto mode
+
+  let current    = 0;
+  let hintHidden = false;
+  let autoTimer  = null;
+  let fillTimer  = null;
+  let playing    = false;
+
+  function pad(n) { return String(n + 1).padStart(2, '0'); }
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= total) return;
+    const prev = current;
+    slides[prev].classList.remove('active');
+    slides[prev].classList.add('exit-left');
+    current = idx;
+    slides[current].classList.add('active');
+    slides[current].classList.remove('exit-left');
+    setTimeout(() => slides[prev].classList.remove('exit-left'), 500);
+    const label = `${pad(current)} / ${pad(total - 1)}`;
+    counter.textContent  = label;
+    indicator.textContent = label;
+    progressBar.style.width = `${((current + 1) / total) * 100}%`;
+    if (!hintHidden) { hint.style.opacity = '0'; hintHidden = true; }
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  /* ── Auto-play ── */
+  function startFill() {
+    autoFill.style.transition = 'none';
+    autoFill.style.width = '0%';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        autoFill.style.transition = `width ${SLIDE_MS}ms linear`;
+        autoFill.style.width = '100%';
+      });
+    });
+  }
+
+  function startAuto() {
+    playing = true;
+    btnAuto.textContent = '⏸ PAUSE';
+    btnAuto.classList.add('playing');
+    autoBar.style.opacity = '1';
+    startFill();
+    autoTimer = setInterval(() => {
+      if (current >= total - 1) {
+        stopAuto();
+        goTo(0);
+      } else {
+        next();
+        startFill();
+      }
+    }, SLIDE_MS);
+  }
+
+  function stopAuto() {
+    playing = false;
+    clearInterval(autoTimer);
+    autoTimer = null;
+    btnAuto.textContent = '▶ AUTO';
+    btnAuto.classList.remove('playing');
+    autoBar.style.opacity = '0';
+    autoFill.style.transition = 'none';
+    autoFill.style.width = '0%';
+  }
+
+  btnAuto.addEventListener('click', () => { playing ? stopAuto() : startAuto(); });
+
+  document.getElementById('btn-next').addEventListener('click', () => { if (playing) { stopAuto(); } next(); });
+  document.getElementById('btn-prev').addEventListener('click', () => { if (playing) { stopAuto(); } prev(); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); if (playing) stopAuto(); next(); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                    { e.preventDefault(); if (playing) stopAuto(); prev(); }
+    if (e.key === 'Home') { stopAuto(); goTo(0); }
+    if (e.key === 'End')  { stopAuto(); goTo(total - 1); }
+    if (e.key === 'p' || e.key === 'P') { playing ? stopAuto() : startAuto(); }
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (dx < -50) { if (playing) stopAuto(); next(); }
+    if (dx >  50) { if (playing) stopAuto(); prev(); }
+  });
+
+  progressBar.style.width = `${(1 / total) * 100}%`;
+})();
+</script>
+</body>
+</html>

@@ -5,10 +5,10 @@
 
   <br/>
 
-  [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://delegai.vercel.app)
+  [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://delegai.edycu.dev)
   [![Pitch Video](https://img.shields.io/badge/🎬_Pitch-Video-ef4444?style=for-the-badge)](https://youtu.be/delegai-demo)
-  [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](https://delegai.vercel.app/pitch)
-  [![Built for HackQuest](https://img.shields.io/badge/HackQuest-MetaMask_x_1Shot-8b5cf6?style=for-the-badge)](https://hackquest.io)
+  [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](https://delegai.edycu.dev/pitch)
+  [![Built for HackQuest](https://img.shields.io/badge/HackQuest-MetaMask_x_1Shot-8b5cf6?style=for-the-badge)](https://www.hackquest.io/hackathons/MetaMask-Smart-Accounts-Kit-x-1Shot-API-Dev-Cook-Off-x-Venice-AI)
 
   <br/>
 
@@ -26,7 +26,7 @@
 ## 📸 See it in Action
 
 <div align="center">
-  <img src="docs/readme.png" alt="DelegAI Demo" width="100%">
+  <img src="public/og-image.png" alt="DelegAI Demo" width="100%">
 </div>
 
 > **One-click delegation flow.** Grant permission → Master Agent scopes → Workers execute → Chain settles. All in <10 seconds.
@@ -86,7 +86,7 @@ graph TD
 | **Social Media** | Bonus | @MetaMaskDev integration posts |
 | **Feedback** | Bonus | SDK feedback document |
 
-**SDK Surface Used:** 18 integration points across `toMetaMaskSmartAccount()`, `createDelegation()`, `createCaveatBuilder()`, `redeemDelegations()`, `paymentMiddleware`, `relayer_send7710Transaction`, and more. See [ARCHITECTURE.md](ARCHITECTURE.md) for full mapping.
+**SDK Surface Used:** 18 integration points across `toMetaMaskSmartAccount()`, `createDelegation()`, `createCaveatBuilder()`, `redeemDelegations()`, `paymentMiddleware`, `relayer_send7710Transaction`, and more. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for full mapping.
 
 ## 🚀 Getting Started
 

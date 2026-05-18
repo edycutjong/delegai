@@ -26,7 +26,7 @@ const STEP_LABELS: Record<DemoStep, string> = {
   relay_submitting: 'Submitting to 1Shot Relay…',
   relay_confirmed: 'Relay Confirmed',
   settling: 'Settling Chain…',
-  complete: 'Chain Settled ✓',
+  complete: 'Chain Settled',
 };
 
 export default function DashboardPage() {

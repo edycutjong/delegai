@@ -1,3 +1,4 @@
+import { CheckCircle2 } from 'lucide-react';
 import type { Agent, DelegationChain, DemoStep } from '@/lib/types';
 import { AGENT_COLORS } from '@/lib/constants';
 
@@ -64,8 +65,8 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
 
       {/* Settlement Status */}
       {chain && step === 'complete' && (
-        <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center">
-          <p className="text-success text-sm font-semibold">Chain Settled ✓</p>
+        <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center flex flex-col items-center">
+          <p className="text-success text-sm font-semibold flex items-center gap-2 justify-center"><CheckCircle2 size={16} /> Chain Settled</p>
           <p className="text-xs text-text-muted mt-1 font-mono">
             All delegations consumed and verified
           </p>

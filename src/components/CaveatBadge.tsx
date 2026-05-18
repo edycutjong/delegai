@@ -5,21 +5,23 @@ interface CaveatBadgeProps {
   value: string | number;
 }
 
-const CAVEAT_STYLES: Record<CaveatType, { bg: string; text: string; icon: string }> = {
+import { Coins, Hash, Key } from 'lucide-react';
+
+const CAVEAT_STYLES: Record<CaveatType, { bg: string; text: string; icon: React.ReactNode }> = {
   Erc20TransferAmount: {
     bg: 'bg-success/10',
     text: 'text-success',
-    icon: '💰',
+    icon: <Coins size={12} />,
   },
   LimitedCalls: {
     bg: 'bg-warning/10',
     text: 'text-warning',
-    icon: '🔢',
+    icon: <Hash size={12} />,
   },
   Redeemer: {
     bg: 'bg-info/10',
     text: 'text-info',
-    icon: '🔑',
+    icon: <Key size={12} />,
   },
 };
 

@@ -26,7 +26,7 @@
 ## 📸 See it in Action
 
 <div align="center">
-  <img src="public/og-image.png" alt="DelegAI Demo" width="100%">
+  <img src="src/app/opengraph-image.png" alt="DelegAI Demo" width="100%">
 </div>
 
 > **One-click delegation flow.** Grant permission → Master Agent scopes → Workers execute → Chain settles. All in <10 seconds.

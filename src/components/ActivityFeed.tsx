@@ -7,16 +7,18 @@ interface ActivityFeedProps {
   activities: ActivityEvent[];
 }
 
-const TYPE_STYLES: Record<string, { icon: string; color: string }> = {
-  delegation_created: { icon: '🔗', color: 'text-primary' },
-  delegation_signed: { icon: '✍️', color: 'text-primary' },
-  sub_delegation_created: { icon: '↳', color: 'text-info' },
-  x402_payment_sent: { icon: '💳', color: 'text-warning' },
-  x402_data_received: { icon: '📊', color: 'text-success' },
-  relay_submitted: { icon: '🚀', color: 'text-warning' },
-  relay_confirmed: { icon: '✅', color: 'text-success' },
-  chain_settled: { icon: '🏁', color: 'text-primary' },
-  error: { icon: '❌', color: 'text-danger' },
+import { Link2, PenLine, CornerDownRight, CreditCard, BarChart2, Rocket, CheckCircle2, Flag, XCircle } from 'lucide-react';
+
+const TYPE_STYLES: Record<string, { icon: React.ReactNode; color: string }> = {
+  delegation_created: { icon: <Link2 size={18} />, color: 'text-primary' },
+  delegation_signed: { icon: <PenLine size={18} />, color: 'text-primary' },
+  sub_delegation_created: { icon: <CornerDownRight size={18} />, color: 'text-info' },
+  x402_payment_sent: { icon: <CreditCard size={18} />, color: 'text-warning' },
+  x402_data_received: { icon: <BarChart2 size={18} />, color: 'text-success' },
+  relay_submitted: { icon: <Rocket size={18} />, color: 'text-warning' },
+  relay_confirmed: { icon: <CheckCircle2 size={18} />, color: 'text-success' },
+  chain_settled: { icon: <Flag size={18} />, color: 'text-primary' },
+  error: { icon: <XCircle size={18} />, color: 'text-danger' },
 };
 
 export function ActivityFeed({ activities }: ActivityFeedProps) {

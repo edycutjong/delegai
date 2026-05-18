@@ -11,7 +11,7 @@ const requiredFiles = [
   'scripts/bench.ts',
   'scripts/verify-demo.ts',
   'docs/DEMO_SCRIPT.md',
-  'ARCHITECTURE.md',
+  'docs/ARCHITECTURE.md',
   'README.md',
   '.github/workflows/ci.yml',
   'docs/SDK_FEEDBACK.md'

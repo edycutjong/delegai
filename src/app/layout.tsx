@@ -18,12 +18,10 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://delegai.edycu.dev"),
   title: "DelegAI — Autonomous Agent Delegation Network",
   description:
     "AI agents autonomously hire, scope, and pay sub-agents via MetaMask redelegation chains and x402 micropayments. The first trustless M2M delegation economy.",
-  icons: {
-    icon: "/icon.png",
-  },
   keywords: [
     "MetaMask",
     "Smart Accounts",
@@ -39,16 +37,8 @@ export const metadata: Metadata = {
     title: "DelegAI — Autonomous Agent Delegation Network",
     description:
       "AI agents autonomously hire, scope, and pay sub-agents via MetaMask redelegation chains and x402 micropayments.",
-    url: "https://delegai.vercel.app",
+    url: "https://delegai.edycu.dev",
     siteName: "DelegAI",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "DelegAI",
-      },
-    ],
     locale: "en_US",
     type: "website",
   },
@@ -57,7 +47,6 @@ export const metadata: Metadata = {
     title: "DelegAI — Autonomous Agent Delegation Network",
     description:
       "AI agents autonomously hire, scope, and pay sub-agents via MetaMask redelegation chains and x402 micropayments.",
-    images: ["/og-image.png"],
   },
 };
 
@@ -70,8 +59,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} ${orbitron.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col scanline-overlay">
+      <body className="min-h-full flex flex-col scanline-overlay" suppressHydrationWarning>
         {children}
       </body>
     </html>

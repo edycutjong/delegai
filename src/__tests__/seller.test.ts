@@ -42,9 +42,16 @@ jest.mock('viem', () => ({
 import { verifyTypedData } from 'viem';
 import { verifyPayment, getPaymentRequirements, X402_COST_PER_CALL } from '@/lib/seller';
 
+let consoleSpy: jest.SpyInstance;
+
 beforeEach(() => {
   _isDemo = true;
   jest.clearAllMocks();
+  consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleSpy.mockRestore();
 });
 
 describe('verifyPayment — demo mode', () => {

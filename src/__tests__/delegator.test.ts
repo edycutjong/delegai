@@ -71,6 +71,8 @@ import {
 
 const FAKE_KEY = '0x' + 'ab'.repeat(32);
 
+let consoleSpy: jest.SpyInstance;
+
 beforeEach(() => {
   _isDemo = true;
   process.env.PRIVATE_KEY_USER = FAKE_KEY;
@@ -78,9 +80,11 @@ beforeEach(() => {
   process.env.PRIVATE_KEY_DATA_WORKER = FAKE_KEY;
   process.env.PRIVATE_KEY_EXEC_WORKER = FAKE_KEY;
   jest.clearAllMocks();
+  consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 });
 
 afterEach(() => {
+  consoleSpy.mockRestore();
   delete process.env.PRIVATE_KEY_USER;
   delete process.env.PRIVATE_KEY_MASTER;
   delete process.env.PRIVATE_KEY_DATA_WORKER;

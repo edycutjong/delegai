@@ -70,4 +70,24 @@ describe('Orchestrator Worker', () => {
       })
     );
   });
+
+  it('uses ONESHOT_WALLET_ADDRESS as exec delegate in live mode when set', async () => {
+    process.env.ONESHOT_WALLET_ADDRESS = '0x1ShotWalletAddr';
+    (createDelegationWithCaveats as jest.Mock)
+      .mockReset()
+      .mockResolvedValueOnce({ id: 'sub-data-2' })
+      .mockResolvedValueOnce({ id: 'sub-exec-2' });
+
+    const result = await runOrchestration();
+
+    expect(result.subDelegations).toHaveLength(2);
+    // The second createDelegationWithCaveats call (exec worker) should use the 1Shot wallet address
+    expect(createDelegationWithCaveats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delegate: '0x1ShotWalletAddr',
+      })
+    );
+
+    delete process.env.ONESHOT_WALLET_ADDRESS;
+  });
 });

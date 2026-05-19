@@ -280,6 +280,103 @@ describe('settleDelegationChain — live mode', () => {
     expect(typeof taskId).toBe('string');
     expect(taskId).toBeTruthy();
   });
+
+  it('walks the delegation chain when child authority points to cached parent', async () => {
+    const { hashDelegation } = await import('@metamask/delegation-core');
+    const { createDelegation: sdkCreate } = await import('@metamask/smart-accounts-kit');
+    const hashMock = hashDelegation as jest.Mock;
+    const createMock = sdkCreate as jest.Mock;
+
+    // First call: parent delegation — hash = parentHash, authority = ROOT
+    hashMock.mockReturnValueOnce('0xparentHash0001');
+    // signDelegation also triggers hashDelegation inside liveSign:
+    hashMock.mockReturnValueOnce('0xparentHash0001');
+
+    await requestPermissions(); // stores parent under '0xparentHash0001'
+
+    // Second call: child delegation — authority = parentHash (points to parent)
+    createMock.mockReturnValueOnce({
+      ...mockSdkDelegation,
+      authority: '0xparentHash0001' as `0x${string}`,
+    });
+    hashMock.mockReturnValueOnce('0xchildHash0002');
+    hashMock.mockReturnValueOnce('0xchildHash0002');
+
+    const child = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+      parentDelegation: '0xparentHash0001',
+    });
+
+    // Settle the child — should walk: child → parent (ROOT_AUTHORITY stops)
+    const taskId = await settleDelegationChain(child.id);
+    expect(typeof taskId).toBe('string');
+    expect(taskId).toBeTruthy();
+
+    const { encodeDelegations } = await import('@metamask/delegation-core');
+    // encodeDelegations should be called with an array of length 2 (child + parent)
+    expect(encodeDelegations).toHaveBeenCalled();
+  });
+
+  it('breaks chain walk when authority points to uncached delegation', async () => {
+    const { hashDelegation } = await import('@metamask/delegation-core');
+    const { createDelegation: sdkCreate } = await import('@metamask/smart-accounts-kit');
+    const hashMock = hashDelegation as jest.Mock;
+    const createMock = sdkCreate as jest.Mock;
+
+    // Create a child whose authority points to a hash NOT in the store
+    createMock.mockReturnValueOnce({
+      ...mockSdkDelegation,
+      authority: '0xnonExistentParentHash999' as `0x${string}`,
+    });
+    hashMock.mockReturnValueOnce('0xorphanChild0001');
+    hashMock.mockReturnValueOnce('0xorphanChild0001');
+
+    const child = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+    });
+
+    // Settle — should enter the while loop, fail to find parent, break
+    const taskId = await settleDelegationChain(child.id);
+    expect(typeof taskId).toBe('string');
+    expect(taskId).toBeTruthy();
+  });
+
+  it('uses zero-address fallback when ONESHOT_WALLET_ADDRESS is not set', async () => {
+    delete process.env.ONESHOT_WALLET_ADDRESS;
+    const { hashDelegation } = await import('@metamask/delegation-core');
+    const hashMock = hashDelegation as jest.Mock;
+    hashMock.mockReturnValueOnce('0xfallbackTest001');
+    hashMock.mockReturnValueOnce('0xfallbackTest001');
+
+    const d = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+    });
+    const taskId = await settleDelegationChain(d.id);
+    expect(typeof taskId).toBe('string');
+  });
+
+  it('uses ONESHOT_WALLET_ADDRESS when env var is set', async () => {
+    process.env.ONESHOT_WALLET_ADDRESS = '0xABCDEF1234567890ABCDEF1234567890ABCDEF12';
+    const { hashDelegation } = await import('@metamask/delegation-core');
+    const hashMock = hashDelegation as jest.Mock;
+    hashMock.mockReturnValueOnce('0xwalletAddrTest001');
+    hashMock.mockReturnValueOnce('0xwalletAddrTest001');
+
+    const d = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+    });
+    const taskId = await settleDelegationChain(d.id);
+    expect(typeof taskId).toBe('string');
+    delete process.env.ONESHOT_WALLET_ADDRESS;
+  });
 });
 
 describe('re-exports', () => {

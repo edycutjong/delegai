@@ -85,7 +85,8 @@ export async function verifyPayment(paymentSignature: string | null): Promise<bo
 
     _usedSignatures.add(paymentSignature);
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[verifyPayment] verification error:', err);
     return false;
   }
 }

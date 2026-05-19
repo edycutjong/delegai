@@ -248,8 +248,32 @@ export async function settleDelegationChain(delegationId: string): Promise<strin
     return result.taskId;
   }
 
-  const encoded = encodeDelegations([sdkDeleg] as unknown as Parameters<typeof encodeDelegations>[0]);
-  const result = await sendTransaction({ encodedDelegations: encoded });
+  // Build chain [leaf, ..., root] — the DelegationManager checks delegations[0].delegate == msg.sender
+  // so the leaf (exec) delegation must be first, root last.
+  const ROOT_AUTHORITY = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+  const chain: SdkDelegation[] = [sdkDeleg];
+  let current = sdkDeleg;
+  while (current.authority && current.authority !== ROOT_AUTHORITY) {
+    const parent = _delegationStore.get(current.authority);
+    if (!parent) break;
+    chain.push(parent);
+    current = parent;
+  }
+
+  console.log('[settleDelegationChain] chain length:', chain.length, '(leaf first)');
+  chain.forEach((d, i) => {
+    console.log(`  [${i}] delegator=${d.delegator} delegate=${d.delegate} authority=${d.authority.slice(0, 10)}...`);
+  });
+
+  const encoded = encodeDelegations(chain as unknown as Parameters<typeof encodeDelegations>[0]);
+
+  // Build ERC-7579 single-call execution calldata: encodePacked(address target, uint256 value, bytes data)
+  // Target = USDC contract, value = 0, data = transfer(1ShotWallet, 1 raw unit)
+  const oneshotWallet = (process.env.ONESHOT_WALLET_ADDRESS ?? '0x0000000000000000000000000000000000000000').slice(2).toLowerCase().padStart(64, '0');
+  const transferCalldata = `a9059cbb${oneshotWallet}${'0'.repeat(63)}1`;
+  const executionCalldata = `0x${USDC_ADDRESS.slice(2)}${'0'.repeat(64)}${transferCalldata}`;
+
+  const result = await sendTransaction({ encodedDelegations: encoded, executionCalldata });
   return result.taskId;
 }
 

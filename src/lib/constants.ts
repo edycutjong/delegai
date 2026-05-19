@@ -49,8 +49,7 @@ export const USDC_ADDRESS =
 
 // ── 1Shot Relay ─────────────────────────────────────────
 
-export const ONESHOT_ENDPOINT =
-  process.env.ONESHOT_ENDPOINT || 'https://relayer.1shotapi.com/relayers';
+export const ONESHOT_API_BASE = 'https://api.1shotapi.com/v0';
 
 // ── x402 ────────────────────────────────────────────────
 

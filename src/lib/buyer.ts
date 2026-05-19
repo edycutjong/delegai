@@ -76,9 +76,12 @@ async function buildPaymentSignature(): Promise<string> {
   const dataWorkerAddr = privateKeyToAccount(dataWorkerKey).address;
 
   // Open delegation: any redeemer can claim (one-time payment authorization)
+  const randomSalt = `0x${BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)).toString(16).padStart(64, '0')}` as `0x${string}`;
+
   const openDeleg = createOpenDelegation({
     environment: env,
     from: dataWorkerAddr,
+    salt: randomSalt,
     scope: {
       type: ScopeType.Erc20TransferAmount,
       tokenAddress: USDC_ADDRESS,

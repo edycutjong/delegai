@@ -83,10 +83,15 @@ export default function DashboardPage() {
       // Map sub_delegation_created to alternating steps
       if (event.type === 'sub_delegation_created') {
         subDelegCount.current += 1;
-        setStep(
-          subDelegCount.current === 1
-            ? 'redelegating_data_worker'
-            : 'redelegating_exec_worker'
+        const isFirst = subDelegCount.current === 1;
+        setStep(isFirst ? 'redelegating_data_worker' : 'redelegating_exec_worker');
+        const workerRole = isFirst ? 'data-worker' : 'exec-worker';
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.role === workerRole
+              ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: WORKER_BUDGET_USDC, callsMax: 2 } }
+              : a
+          )
         );
       } else {
         const nextStep = EVENT_TO_STEP[event.type];

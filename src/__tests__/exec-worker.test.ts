@@ -34,7 +34,7 @@ describe('Exec Worker', () => {
     expect(eventBus.emit).toHaveBeenNthCalledWith(1, expect.objectContaining({
       type: 'relay_submitted',
       agent: 'exec-worker',
-      message: expect.stringContaining('UserOp submitted'),
+      message: expect.stringContaining('Gwei'),
     }));
 
     expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
@@ -68,6 +68,26 @@ describe('Exec Worker', () => {
     expect(getStatus).toHaveBeenCalledWith('unknown');
   });
 
+  it('degrades gracefully when relay is not configured (code 4206)', async () => {
+    (getFeeData as jest.Mock).mockRejectedValue(new Error('1Shot relay not configured: set ONESHOT_API_KEY and ONESHOT_API_SECRET'));
+
+    const result = await runExecWorker();
+
+    expect(result.taskId).toBe('unconfigured');
+    expect(result.status).toBe('CONFIRMED');
+    expect(getStatus).not.toHaveBeenCalled();
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(eventBus.emit).toHaveBeenCalledTimes(2);
+    expect(eventBus.emit).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      type: 'relay_submitted',
+      message: expect.stringContaining('relay skipped'),
+    }));
+    expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      type: 'relay_confirmed',
+      message: expect.stringContaining('relay unconfigured'),
+    }));
+  });
+
   it('handles undefined txHash', async () => {
     (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
     (sendTransaction as jest.Mock).mockResolvedValue({ taskId: 'task-123' });
@@ -80,7 +100,31 @@ describe('Exec Worker', () => {
     expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
       type: 'relay_confirmed',
       agent: 'exec-worker',
-      message: expect.stringContaining('1Shot relay confirmed: tx undefined...undefined'),
+      message: expect.stringContaining('1Shot relay confirmed'),
     }));
+  });
+
+  it('re-throws unexpected errors from getFeeData', async () => {
+    (getFeeData as jest.Mock).mockRejectedValue(new Error('network timeout'));
+
+    await expect(runExecWorker()).rejects.toThrow('network timeout');
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+    expect(getStatus).not.toHaveBeenCalled();
+  });
+
+  it('re-throws non-Error objects from getFeeData', async () => {
+    (getFeeData as jest.Mock).mockRejectedValue('raw string error');
+
+    await expect(runExecWorker()).rejects.toBe('raw string error');
+  });
+
+  it('degrades gracefully when relay throws "Chain undefined"', async () => {
+    (getFeeData as jest.Mock).mockRejectedValue(new Error('Chain undefined for environment'));
+
+    const result = await runExecWorker();
+
+    expect(result.taskId).toBe('unconfigured');
+    expect(result.status).toBe('CONFIRMED');
   });
 });

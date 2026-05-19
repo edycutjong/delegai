@@ -1,9 +1,45 @@
+jest.mock('@metamask/smart-accounts-kit', () => ({
+  createOpenDelegation: jest.fn(() => ({
+    delegate: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+    delegator: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+    authority: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as `0x${string}`,
+    caveats: [],
+    salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+    signature: '0x' as `0x${string}`,
+  })),
+  getSmartAccountsEnvironment: jest.fn(() => ({
+    DelegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+  })),
+  ScopeType: { Erc20TransferAmount: 'erc20TransferAmount' },
+  signDelegation: jest.fn(() => Promise.resolve('0xpaymentSignatureHex' as `0x${string}`)),
+}));
+
+jest.mock('@metamask/delegation-core', () => ({
+  encodeDelegations: jest.fn(() => '0xencoded' as `0x${string}`),
+  decodeDelegations: jest.fn(),
+}));
+
+jest.mock('viem/accounts', () => ({
+  privateKeyToAccount: jest.fn(() => ({
+    address: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+  })),
+}));
+
 import { fetchPremiumData } from '../lib/buyer';
 import { MOCK_MARKET_FEED, MOCK_DEFI_YIELDS } from '../lib/mock-data';
 
+const FAKE_KEY = '0x' + 'ab'.repeat(32);
+
 beforeEach(() => {
   global.fetch = jest.fn();
+  process.env.PRIVATE_KEY_DATA_WORKER = FAKE_KEY;
+  process.env.NEXT_PUBLIC_BASE_URL = 'http://localhost:3000';
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  delete process.env.PRIVATE_KEY_DATA_WORKER;
+  delete process.env.NEXT_PUBLIC_BASE_URL; // ensure fallback path is tested explicitly
 });
 
 describe('live mode (IS_DEMO=false)', () => {
@@ -56,6 +92,31 @@ describe('live mode (IS_DEMO=false)', () => {
     await fetchPremiumData('market-feed');
     const [, opts] = (global.fetch as jest.Mock).mock.calls[1];
     expect(opts.headers['PAYMENT-SIGNATURE']).toBeDefined();
+  });
+
+  it('throws when PRIVATE_KEY_DATA_WORKER is missing during payment signature', async () => {
+    delete process.env.PRIVATE_KEY_DATA_WORKER;
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        status: 402,
+        headers: { get: jest.fn().mockReturnValue('{"scheme":"test"}') },
+      });
+    await expect(fetchPremiumData('market-feed')).rejects.toThrow('Missing env PRIVATE_KEY_DATA_WORKER');
+  });
+
+  it('uses localhost:3000 fallback when NEXT_PUBLIC_BASE_URL is not set', async () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    await expect(fetchPremiumData('market-feed')).rejects.toThrow(
+      'x402 fetch to http://localhost:3000/api/premium-data/market-feed failed'
+    );
+  });
+
+  it('wraps network fetch errors with the attempted URL', async () => {
+    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    await expect(fetchPremiumData('market-feed')).rejects.toThrow(
+      'x402 fetch to http://localhost:3000/api/premium-data/market-feed failed'
+    );
   });
 });
 

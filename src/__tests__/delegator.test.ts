@@ -12,6 +12,51 @@ jest.mock('@/lib/constants', () => ({
   toUsdcRaw: (n: number) => String(Math.round(n * 1e6)),
   ROOT_BUDGET_USDC: 50,
   ROOT_MAX_CALLS: 5,
+  WORKER_BUDGET_USDC: 10,
+  CHAIN_ID: 11155111,
+  USDC_ADDRESS: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+}));
+
+const mockSdkDelegation = {
+  delegate: '0x0000000000000000000000000000000000000002' as `0x${string}`,
+  delegator: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+  authority: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as `0x${string}`,
+  caveats: [],
+  salt: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+  signature: '0x' as `0x${string}`,
+};
+
+jest.mock('@metamask/smart-accounts-kit', () => ({
+  createDelegation: jest.fn(() => ({ ...mockSdkDelegation })),
+  getSmartAccountsEnvironment: jest.fn(() => ({
+    DelegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+  })),
+  ScopeType: { Erc20TransferAmount: 'erc20TransferAmount' },
+  CaveatType: {
+    LimitedCalls: 'limitedCalls',
+    Erc20TransferAmount: 'erc20TransferAmount',
+    Redeemer: 'redeemer',
+  },
+  signDelegation: jest.fn(() => Promise.resolve('0xfakesignature000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c' as `0x${string}`)),
+}));
+
+jest.mock('@metamask/delegation-core', () => ({
+  hashDelegation: jest.fn(() => '0xhashABCDEF1234' as `0x${string}`),
+  encodeDelegations: jest.fn(() => '0xencoded1234' as `0x${string}`),
+  decodeDelegations: jest.fn(),
+}));
+
+jest.mock('viem/accounts', () => ({
+  privateKeyToAccount: jest.fn(() => ({
+    address: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+  })),
+}));
+
+jest.mock('@/lib/relay', () => ({
+  sendTransaction: jest.fn(() => Promise.resolve({
+    taskId: 'mock-task-id',
+    status: 'submitted',
+  })),
 }));
 
 import {
@@ -24,7 +69,23 @@ import {
   ROOT_MAX_CALLS,
 } from '@/lib/delegator';
 
-beforeEach(() => { _isDemo = true; });
+const FAKE_KEY = '0x' + 'ab'.repeat(32);
+
+beforeEach(() => {
+  _isDemo = true;
+  process.env.PRIVATE_KEY_USER = FAKE_KEY;
+  process.env.PRIVATE_KEY_MASTER = FAKE_KEY;
+  process.env.PRIVATE_KEY_DATA_WORKER = FAKE_KEY;
+  process.env.PRIVATE_KEY_EXEC_WORKER = FAKE_KEY;
+  jest.clearAllMocks();
+});
+
+afterEach(() => {
+  delete process.env.PRIVATE_KEY_USER;
+  delete process.env.PRIVATE_KEY_MASTER;
+  delete process.env.PRIVATE_KEY_DATA_WORKER;
+  delete process.env.PRIVATE_KEY_EXEC_WORKER;
+});
 
 describe('createSmartAccount — demo mode', () => {
   it('returns user address for role "user"', async () => {
@@ -53,8 +114,22 @@ describe('createSmartAccount — demo mode', () => {
 describe('createSmartAccount — live mode', () => {
   beforeEach(() => { _isDemo = false; });
 
-  it('throws live mode error', async () => {
-    await expect(createSmartAccount('user')).rejects.toThrow('Live mode not yet implemented');
+  it('returns address derived from private key', async () => {
+    const addr = await createSmartAccount('user');
+    expect(typeof addr).toBe('string');
+    expect(addr.startsWith('0x')).toBe(true);
+  });
+
+  it('throws when private key env var is missing', async () => {
+    delete process.env.PRIVATE_KEY_USER;
+    await expect(createSmartAccount('user')).rejects.toThrow('Missing env PRIVATE_KEY_USER');
+  });
+
+  it('throws when private key is not a valid 32-byte hex string', async () => {
+    process.env.PRIVATE_KEY_USER = '0x-not-a-real-key';
+    await expect(createSmartAccount('user')).rejects.toThrow(
+      'Invalid PRIVATE_KEY_USER: must be a 0x-prefixed 32-byte hex string (64 hex chars)'
+    );
   });
 });
 
@@ -75,8 +150,16 @@ describe('requestPermissions — demo mode', () => {
 describe('requestPermissions — live mode', () => {
   beforeEach(() => { _isDemo = false; });
 
-  it('throws live mode error', async () => {
-    await expect(requestPermissions()).rejects.toThrow('Live mode not yet implemented');
+  it('creates and returns a signed root delegation', async () => {
+    const delegation = await requestPermissions();
+    expect(delegation.id).toBeTruthy();
+    expect(delegation.status).toBe('active');
+    expect(delegation.signature).toBeTruthy();
+  });
+
+  it('throws when private key env var is missing', async () => {
+    delete process.env.PRIVATE_KEY_USER;
+    await expect(requestPermissions()).rejects.toThrow('Missing env PRIVATE_KEY_USER');
   });
 });
 
@@ -117,15 +200,63 @@ describe('createDelegationWithCaveats — demo mode', () => {
 describe('createDelegationWithCaveats — live mode', () => {
   beforeEach(() => { _isDemo = false; });
 
-  it('throws live mode error', async () => {
+  it('creates and returns a signed sub-delegation', async () => {
+    const d = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [{ type: 'LimitedCalls', value: 2 }],
+    });
+    expect(d.id).toBeTruthy();
+    expect(d.status).toBe('active');
+  });
+
+  it('maps all known caveat types correctly', async () => {
+    await expect(
+      createDelegationWithCaveats({
+        delegator: '0x1',
+        delegate: '0x2',
+        caveats: [
+          { type: 'Erc20TransferAmount', value: '10000000' },
+          { type: 'LimitedCalls', value: 2 },
+          { type: 'Redeemer', value: '0x0000000000000000000000000000000000000002' },
+        ],
+      })
+    ).resolves.toBeTruthy();
+  });
+
+  it('passes unknown caveat type through to SDK as-is', async () => {
+    await expect(
+      createDelegationWithCaveats({
+        delegator: '0x1',
+        delegate: '0x2',
+        caveats: [{ type: 'UnknownType' as never, value: 'x' }],
+      })
+    ).resolves.toBeTruthy();
+  });
+
+  it('uses parentDelegation from store when id matches cached delegation', async () => {
+    // Populate the store by creating a delegation first
+    const parent = await requestPermissions();
+    // Now create sub-delegation referencing the cached parent
+    const child = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+      parentDelegation: parent.id,
+    });
+    expect(child.parentDelegation).toBe(parent.id);
+  });
+
+  it('throws when private key env var is missing', async () => {
+    delete process.env.PRIVATE_KEY_MASTER;
     await expect(
       createDelegationWithCaveats({ delegator: '0x', delegate: '0x', caveats: [] })
-    ).rejects.toThrow('Live mode not yet implemented');
+    ).rejects.toThrow('Missing env PRIVATE_KEY_MASTER');
   });
 });
 
 describe('settleDelegationChain — demo mode', () => {
-  it('resolves without error', async () => {
+  it('resolves to undefined', async () => {
     await expect(settleDelegationChain('deleg-001')).resolves.toBeUndefined();
   });
 });
@@ -133,8 +264,21 @@ describe('settleDelegationChain — demo mode', () => {
 describe('settleDelegationChain — live mode', () => {
   beforeEach(() => { _isDemo = false; });
 
-  it('throws live mode error', async () => {
-    await expect(settleDelegationChain('deleg-001')).rejects.toThrow('Live mode not yet implemented');
+  it('returns taskId for unknown delegation id', async () => {
+    const taskId = await settleDelegationChain('unknown-id-xyz');
+    expect(typeof taskId).toBe('string');
+    expect(taskId).toBeTruthy();
+  });
+
+  it('returns taskId with encoded delegation when id is known', async () => {
+    const d = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+    });
+    const taskId = await settleDelegationChain(d.id);
+    expect(typeof taskId).toBe('string');
+    expect(taskId).toBeTruthy();
   });
 });
 

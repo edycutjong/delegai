@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Agent, DelegationChain, ActivityEvent, DemoStep } from '@/lib/types';
 import { createMockAgents, createMockActivities } from '@/lib/mock-data';
 import { Header } from '@/components/Header';
@@ -14,6 +14,8 @@ import {
   WORKER_BUDGET_USDC,
   X402_COST_PER_CALL,
 } from '@/lib/constants';
+
+const IS_LIVE = process.env.NEXT_PUBLIC_DELEGAI_DEMO !== 'true';
 
 const STEP_LABELS: Record<DemoStep, string> = {
   idle: 'Ready',
@@ -29,12 +31,134 @@ const STEP_LABELS: Record<DemoStep, string> = {
   complete: 'Chain Settled',
 };
 
+const EVENT_TO_STEP: Partial<Record<ActivityEvent['type'], DemoStep>> = {
+  delegation_created: 'creating_root_delegation',
+  delegation_signed: 'creating_root_delegation',
+  sub_delegation_created: 'redelegating_data_worker',
+  x402_payment_sent: 'x402_payment',
+  x402_data_received: 'x402_data_received',
+  relay_submitted: 'relay_submitting',
+  relay_confirmed: 'relay_confirmed',
+  chain_settled: 'complete',
+};
+
 export default function DashboardPage() {
   const [agents, setAgents] = useState<Agent[]>(() => createMockAgents());
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [step, setStep] = useState<DemoStep>('idle');
   const [isRunning, setIsRunning] = useState(false);
   const [chain, setChain] = useState<DelegationChain | null>(null);
+  const subDelegCount = useRef(0);
+
+  const runLive = useCallback(async () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    setActivities([]);
+    subDelegCount.current = 0;
+
+    setStep('granting_permission');
+
+    // Open SSE FIRST and wait for server's "connected" ack before triggering the
+    // orchestration — otherwise the first synchronously-emitted event is dropped.
+    const es = new EventSource('/api/events');
+    await new Promise<void>((resolve) => {
+      const onConnect = (e: MessageEvent) => {
+        const data = JSON.parse(e.data as string) as { type: string };
+        if (data.type === 'connected') {
+          es.removeEventListener('message', onConnect);
+          resolve();
+        }
+      };
+      es.addEventListener('message', onConnect);
+    });
+
+    await fetch('/api/delegate', { method: 'POST' });
+
+    es.onmessage = (e: MessageEvent) => {
+      const event: ActivityEvent = JSON.parse(e.data as string);
+      if ((event.type as string) === 'connected') return;
+
+      setActivities((prev) => [...prev, event]);
+
+      // Map sub_delegation_created to alternating steps
+      if (event.type === 'sub_delegation_created') {
+        subDelegCount.current += 1;
+        setStep(
+          subDelegCount.current === 1
+            ? 'redelegating_data_worker'
+            : 'redelegating_exec_worker'
+        );
+      } else {
+        const nextStep = EVENT_TO_STEP[event.type];
+        if (nextStep) setStep(nextStep);
+      }
+
+      // Update agent statuses based on event
+      if (event.type === 'delegation_signed') {
+        setAgents((prev) =>
+          prev.map((a) => (a.role === 'user' ? { ...a, status: 'done' as const } : a))
+        );
+      } else if (event.type === 'x402_payment_sent') {
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.role === 'data-worker' ? { ...a, status: 'working' as const } : a
+          )
+        );
+      } else if (event.type === 'x402_data_received') {
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.role === 'data-worker'
+              ? {
+                  ...a,
+                  status: 'done' as const,
+                  budget: { ...a.budget, consumed: X402_COST_PER_CALL, callsUsed: 1 },
+                }
+              : a
+          )
+        );
+      } else if (event.type === 'relay_submitted') {
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.role === 'exec-worker' ? { ...a, status: 'working' as const } : a
+          )
+        );
+      } else if (event.type === 'relay_confirmed') {
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.role === 'exec-worker'
+              ? {
+                  ...a,
+                  status: 'done' as const,
+                  budget: { ...a.budget, consumed: 0.03, callsUsed: 1 },
+                }
+              : a
+          )
+        );
+      } else if (event.type === 'chain_settled') {
+        setAgents((prev) =>
+          prev.map((a) => ({ ...a, status: 'done' as const }))
+        );
+        // Populate chain so DelegationTree shows the "Chain Settled" block
+        setChain({
+          root: { id: 'live-root', delegator: '0x', delegate: '0x', caveats: [], salt: '0x0', status: 'settled', createdAt: Date.now() },
+          subDelegations: [
+            { id: 'live-data', delegator: '0x', delegate: '0x', caveats: [], salt: '0x0', status: 'settled', createdAt: Date.now() },
+            { id: 'live-exec', delegator: '0x', delegate: '0x', caveats: [], salt: '0x0', status: 'settled', createdAt: Date.now() },
+          ],
+        });
+        setIsRunning(false);
+        es.close();
+      } else if (event.type === 'error') {
+        setIsRunning(false);
+        es.close();
+      }
+    };
+
+    es.onerror = () => {
+      setIsRunning(false);
+      es.close();
+    };
+  }, [isRunning]);
 
   const runDemo = useCallback(async () => {
     if (isRunning) return;
@@ -210,12 +334,16 @@ export default function DashboardPage() {
                   isRunning ? 'bg-warning animate-pulse' : step === 'complete' ? 'bg-success' : 'bg-text-muted'
                 }`}
               />
-              <span className="text-sm font-mono text-text-secondary">
+              <span key={step} className="text-sm font-mono text-text-secondary animate-step-flash">
                 {STEP_LABELS[step]}
               </span>
             </div>
           </div>
-          <StartDelegationButton onClick={runDemo} isRunning={isRunning} isComplete={step === 'complete'} />
+          <StartDelegationButton
+            onClick={IS_LIVE ? runLive : runDemo}
+            isRunning={isRunning}
+            isComplete={step === 'complete'}
+          />
         </div>
 
         {/* Main Grid */}

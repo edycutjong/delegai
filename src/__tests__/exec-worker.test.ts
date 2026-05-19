@@ -1,8 +1,10 @@
 import { runExecWorker } from '../agents/exec-worker';
 import { getFeeData, sendTransaction, getStatus } from '../lib/relay';
+import { settleDelegationChain } from '../lib/delegator';
 import { eventBus } from '../lib/events';
 
 jest.mock('../lib/relay');
+jest.mock('../lib/delegator');
 jest.mock('../lib/events', () => ({
   eventBus: {
     emit: jest.fn(),
@@ -22,7 +24,7 @@ describe('Exec Worker', () => {
     const result = await runExecWorker();
 
     expect(result).toEqual({ txHash: '0x1234567890abcdef1234567890abcdef12345678' });
-    
+
     expect(getFeeData).toHaveBeenCalledTimes(1);
     expect(sendTransaction).toHaveBeenCalledTimes(1);
     expect(getStatus).toHaveBeenCalledWith('task-123');
@@ -42,6 +44,30 @@ describe('Exec Worker', () => {
     }));
   });
 
+  it('submits encoded delegation chain when delegationId is provided', async () => {
+    (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
+    (settleDelegationChain as jest.Mock).mockResolvedValue('task-settled');
+    (getStatus as jest.Mock).mockResolvedValue({ txHash: '0xsettled' });
+
+    const result = await runExecWorker('deleg-exec-id');
+
+    expect(result).toEqual({ txHash: '0xsettled' });
+    expect(settleDelegationChain).toHaveBeenCalledWith('deleg-exec-id');
+    expect(getStatus).toHaveBeenCalledWith('task-settled');
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
+  it('falls back to "unknown" taskId when settleDelegationChain returns undefined', async () => {
+    (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
+    (settleDelegationChain as jest.Mock).mockResolvedValue(undefined);
+    (getStatus as jest.Mock).mockResolvedValue({ txHash: '0xfallback' });
+
+    const result = await runExecWorker('deleg-demo-id');
+
+    expect(result).toEqual({ txHash: '0xfallback' });
+    expect(getStatus).toHaveBeenCalledWith('unknown');
+  });
+
   it('handles undefined txHash', async () => {
     (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
     (sendTransaction as jest.Mock).mockResolvedValue({ taskId: 'task-123' });
@@ -50,7 +76,7 @@ describe('Exec Worker', () => {
     const result = await runExecWorker();
 
     expect(result).toEqual({ status: 'PENDING' });
-    
+
     expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
       type: 'relay_confirmed',
       agent: 'exec-worker',

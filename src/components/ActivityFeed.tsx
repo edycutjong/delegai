@@ -48,7 +48,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
           <div
             key={event.id}
             className="flex items-start gap-3 p-2 rounded-lg hover:bg-bg-elevated/30 transition-colors animate-fade-in-up"
-            style={{ animationDelay: `${i * 50}ms` }}
+            style={{ animationDelay: `${Math.min(i, 1) * 40}ms` }}
           >
             <span className="text-lg mt-0.5 shrink-0">{style.icon}</span>
             <div className="min-w-0 flex-1">

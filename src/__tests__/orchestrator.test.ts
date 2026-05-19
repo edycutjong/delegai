@@ -1,6 +1,8 @@
 import { runOrchestration } from '../agents/orchestrator';
-import { createDelegationWithCaveats, requestPermissions } from '../lib/delegator';
+import { createDelegationWithCaveats, requestPermissions, createSmartAccount } from '../lib/delegator';
 import { eventBus } from '../lib/events';
+
+let _isDemo = false;
 
 jest.mock('../lib/delegator');
 jest.mock('../lib/events', () => ({
@@ -9,34 +11,63 @@ jest.mock('../lib/events', () => ({
   },
 }));
 jest.mock('../lib/constants', () => ({
-  ...jest.requireActual('../lib/constants'),
+  get IS_DEMO() { return _isDemo; },
+  DEMO_ADDRESSES: {
+    master: '0xMa5t3R00000000000000000000000000000dEaD2',
+    dataWorker: '0xDa7a000000000000000000000000000000dEaD3',
+    execWorker: '0x3x3c000000000000000000000000000000dEaD4',
+  },
+  WORKER_BUDGET_USDC: 10,
+  WORKER_MAX_CALLS: 2,
   STEP_DELAY: 0,
+  toUsdcRaw: (n: number) => String(Math.round(n * 1e6)),
 }));
 
 describe('Orchestrator Worker', () => {
   beforeEach(() => {
+    _isDemo = false;
     jest.clearAllMocks();
+    (createSmartAccount as jest.Mock).mockResolvedValue('0xliveaddr');
+    (requestPermissions as jest.Mock).mockResolvedValue({ id: 'root-1' });
+    (createDelegationWithCaveats as jest.Mock)
+      .mockResolvedValueOnce({ id: 'sub-data-1' })
+      .mockResolvedValueOnce({ id: 'sub-exec-1' });
   });
 
-  it('runs the orchestrator flow successfully', async () => {
-    const mockRootDelegation = { id: 'root-1' };
-    const mockDataDelegation = { id: 'sub-data-1' };
-    const mockExecDelegation = { id: 'sub-exec-1' };
-
-    (requestPermissions as jest.Mock).mockResolvedValue(mockRootDelegation);
-    (createDelegationWithCaveats as jest.Mock)
-      .mockResolvedValueOnce(mockDataDelegation)
-      .mockResolvedValueOnce(mockExecDelegation);
-
+  it('runs the orchestrator flow in live mode resolving real addresses', async () => {
     const result = await runOrchestration();
 
     expect(result).toEqual({
-      root: mockRootDelegation,
-      subDelegations: [mockDataDelegation, mockExecDelegation],
+      root: { id: 'root-1' },
+      subDelegations: [{ id: 'sub-data-1' }, { id: 'sub-exec-1' }],
     });
 
+    expect(createSmartAccount).toHaveBeenCalledWith('master');
+    expect(createSmartAccount).toHaveBeenCalledWith('data-worker');
+    expect(createSmartAccount).toHaveBeenCalledWith('exec-worker');
     expect(requestPermissions).toHaveBeenCalledTimes(1);
     expect(createDelegationWithCaveats).toHaveBeenCalledTimes(2);
     expect(eventBus.emit).toHaveBeenCalledTimes(4);
+  });
+
+  it('runs the orchestrator flow in demo mode using DEMO_ADDRESSES', async () => {
+    _isDemo = true;
+    (createDelegationWithCaveats as jest.Mock)
+      .mockReset()
+      .mockResolvedValueOnce({ id: 'sub-data-1' })
+      .mockResolvedValueOnce({ id: 'sub-exec-1' });
+
+    const result = await runOrchestration();
+
+    expect(result.root).toEqual({ id: 'root-1' });
+    expect(result.subDelegations).toHaveLength(2);
+    // createSmartAccount should NOT be called in demo mode
+    expect(createSmartAccount).not.toHaveBeenCalled();
+    // delegator calls with demo addresses
+    expect(createDelegationWithCaveats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        delegator: '0xMa5t3R00000000000000000000000000000dEaD2',
+      })
+    );
   });
 });

@@ -29,7 +29,7 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
       />
 
       {/* Connector */}
-      <div className="ml-6 pl-4 border-l-2 border-primary/40 py-2">
+      <div className={`ml-6 pl-4 border-l-2 py-2 transition-all duration-500 ${isActive ? 'border-primary/60 animate-tree-flow' : 'border-primary/20'}`}>
         {/* Master Node */}
         <TreeNode
           label="Master Agent"
@@ -40,7 +40,7 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
           isActive={isActive && step !== 'granting_permission'}
         />
 
-        <div className="ml-6 pl-4 border-l-2 border-info/40 py-2 space-y-3">
+        <div className={`ml-6 pl-4 border-l-2 py-2 space-y-3 transition-all duration-500 ${isActive && step !== 'granting_permission' && step !== 'creating_root_delegation' ? 'border-info/60 animate-tree-flow' : 'border-info/20'}`}>
           {/* Data Worker */}
           <TreeNode
             label="Data Worker"
@@ -65,7 +65,7 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
 
       {/* Settlement Status */}
       {chain && step === 'complete' && (
-        <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center flex flex-col items-center">
+        <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center flex flex-col items-center animate-fade-in-up">
           <p className="text-success text-sm font-semibold flex items-center gap-2 justify-center"><CheckCircle2 size={16} /> Chain Settled</p>
           <p className="text-xs text-text-muted mt-1 font-mono">
             All delegations consumed and verified

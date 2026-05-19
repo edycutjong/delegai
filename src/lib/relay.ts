@@ -28,17 +28,24 @@ export async function getFeeData(): Promise<RelayFeeData> {
   });
 
   const data = await response.json();
+  if (data.error) throw new Error(data.error.message ?? 'relayer_getFeeData failed');
   return data.result as RelayFeeData;
 }
 
 /**
  * Submit gasless transaction (relayer_send7710Transaction).
  */
-export async function sendTransaction(): Promise<RelaySubmission> {
+export async function sendTransaction(params?: {
+  encodedDelegations?: string;
+}): Promise<RelaySubmission> {
   if (IS_DEMO) {
     await delay(800);
     return { ...MOCK_RELAY_SUBMISSION };
   }
+
+  const rpcParams = params?.encodedDelegations
+    ? [{ delegations: params.encodedDelegations }]
+    : [];
 
   const response = await fetch(ONESHOT_ENDPOINT, {
     method: 'POST',
@@ -46,12 +53,13 @@ export async function sendTransaction(): Promise<RelaySubmission> {
     body: JSON.stringify({
       jsonrpc: '2.0',
       method: 'relayer_send7710Transaction',
-      params: [],
+      params: rpcParams,
       id: 2,
     }),
   });
 
   const data = await response.json();
+  if (data.error) throw new Error(data.error.message ?? 'relayer_send7710Transaction failed');
   return data.result as RelaySubmission;
 }
 
@@ -76,6 +84,7 @@ export async function getStatus(taskId: string): Promise<RelayStatus> {
   });
 
   const data = await response.json();
+  if (data.error) throw new Error(data.error.message ?? 'relayer_getStatus failed');
   return data.result as RelayStatus;
 }
 

@@ -11,10 +11,12 @@ import { eventBus } from '@/lib/events';
 /**
  * Run the Exec Worker flow:
  * 1. Get fee quote from 1Shot (relayer_getFeeData)
- * 2. Submit gasless transaction (relayer_send7710Transaction)
+ * 2. Submit gasless transaction with encoded delegation chain (relayer_send7710Transaction)
  * 3. Poll for confirmation (relayer_getStatus)
+ *
+ * Pass delegationId to submit with the encoded ERC-7710 delegation chain.
  */
-export async function runExecWorker(): Promise<RelayStatus> {
+export async function runExecWorker(delegationId?: string): Promise<RelayStatus> {
   // Step 1: Get fee quote
   const fee = await getFeeData();
   const feeUsdc = Number(fee.feeAmount) / 1e6;
@@ -27,11 +29,18 @@ export async function runExecWorker(): Promise<RelayStatus> {
 
   await delay(STEP_DELAY);
 
-  // Step 2: Submit transaction
-  const submission = await sendTransaction();
+  // Step 2: Submit transaction (with encoded delegation chain when available)
+  let taskId: string;
+  if (delegationId) {
+    const { settleDelegationChain } = await import('@/lib/delegator');
+    taskId = (await settleDelegationChain(delegationId)) ?? 'unknown';
+  } else {
+    const submission = await sendTransaction();
+    taskId = submission.taskId;
+  }
 
   // Step 3: Poll status
-  const status = await getStatus(submission.taskId);
+  const status = await getStatus(taskId);
 
   emitActivity(
     'relay_confirmed',

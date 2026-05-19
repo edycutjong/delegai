@@ -1,21 +1,39 @@
 /* ─────────────────────────────────────────────────────────
  * DelegAI — x402 Seller Setup
- * Express middleware for protected premium data endpoints
+ * Payment verification for protected premium data endpoints
  * ───────────────────────────────────────────────────────── */
 
-import { IS_DEMO, X402_FACILITATOR, X402_COST_PER_CALL } from './constants';
+import { IS_DEMO, CHAIN_ID, X402_FACILITATOR, X402_COST_PER_CALL } from './constants';
+
+// EIP-712 types matching the DelegationManager signing schema
+const DELEGATION_TYPES = {
+  Caveat: [
+    { name: 'enforcer', type: 'address' },
+    { name: 'terms', type: 'bytes' },
+  ],
+  Delegation: [
+    { name: 'delegate', type: 'address' },
+    { name: 'delegator', type: 'address' },
+    { name: 'authority', type: 'bytes32' },
+    { name: 'caveats', type: 'Caveat[]' },
+    { name: 'salt', type: 'uint256' },
+  ],
+} as const;
+
+// In-memory anti-replay registry — resets on server restart (sufficient for demo scale)
+const _usedSignatures = new Set<string>();
 
 /**
- * x402 payment verification.
+ * Verify an x402 payment signature.
  *
- * In production: uses @x402/express paymentMiddleware with
- *   Erc7710ExactEvmScheme + HTTPFacilitatorClient
- *
- * In demo mode: accepts any PAYMENT-SIGNATURE header
+ * Live mode:
+ *   1. Rejects replayed signatures (anti-replay)
+ *   2. Decodes the ERC-7710 delegation chain
+ *   3. Cryptographically verifies the delegator's EIP-712 signature
+ * Demo mode: accepts any PAYMENT-SIGNATURE header.
  */
-export function verifyPayment(paymentSignature: string | null): boolean {
+export async function verifyPayment(paymentSignature: string | null): Promise<boolean> {
   if (IS_DEMO) {
-    // Demo mode accepts any signature (including null for scripted flow)
     return true;
   }
 
@@ -23,10 +41,53 @@ export function verifyPayment(paymentSignature: string | null): boolean {
     return false;
   }
 
-  // Production: verify via facilitator
-  // const facilitator = new HTTPFacilitatorClient(X402_FACILITATOR);
-  // return facilitator.verify(paymentSignature, ...);
-  return false;
+  // Anti-replay: reject previously-accepted signatures
+  if (_usedSignatures.has(paymentSignature)) {
+    return false;
+  }
+
+  try {
+    const { decodeDelegations } = await import('@metamask/delegation-core');
+    const { getSmartAccountsEnvironment } = await import('@metamask/smart-accounts-kit');
+    const { verifyTypedData } = await import('viem');
+
+    const delegations = decodeDelegations(paymentSignature as `0x${string}`);
+    if (delegations.length === 0) return false;
+
+    const delegation = delegations[0];
+    if (!delegation.signature || delegation.signature === '0x') return false;
+
+    const env = getSmartAccountsEnvironment(CHAIN_ID);
+
+    const isValid = await verifyTypedData({
+      address: delegation.delegator as `0x${string}`,
+      domain: {
+        chainId: CHAIN_ID,
+        name: 'DelegationManager',
+        version: '1',
+        verifyingContract: env.DelegationManager as `0x${string}`,
+      },
+      types: DELEGATION_TYPES,
+      primaryType: 'Delegation',
+      message: {
+        delegate: delegation.delegate,
+        delegator: delegation.delegator,
+        authority: delegation.authority,
+        caveats: (delegation.caveats as { enforcer: `0x${string}`; terms: `0x${string}` }[]).map(
+          (c) => ({ enforcer: c.enforcer, terms: c.terms })
+        ),
+        salt: delegation.salt,
+      },
+      signature: delegation.signature as `0x${string}`,
+    });
+
+    if (!isValid) return false;
+
+    _usedSignatures.add(paymentSignature);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

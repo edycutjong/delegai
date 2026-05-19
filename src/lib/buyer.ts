@@ -4,7 +4,7 @@
  * ───────────────────────────────────────────────────────── */
 
 import type { PremiumDataResponse } from './types';
-import { IS_DEMO } from './constants';
+import { IS_DEMO, CHAIN_ID, USDC_ADDRESS } from './constants';
 import { MOCK_MARKET_FEED, MOCK_DEFI_YIELDS } from './mock-data';
 
 /**
@@ -29,9 +29,14 @@ export async function fetchPremiumData(
       : { ...MOCK_DEFI_YIELDS };
   }
 
+  // Falls back to localhost:3000 for local dev; set NEXT_PUBLIC_BASE_URL in production
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const url = `${baseUrl}/api/premium-data/${endpoint}`;
+
   // Step 1: Initial request (expect 402)
-  const url = `/api/premium-data/${endpoint}`;
-  const initialResponse = await fetch(url);
+  const initialResponse = await fetch(url).catch((err: Error) => {
+    throw new Error(`x402 fetch to ${url} failed — check NEXT_PUBLIC_BASE_URL. (${err.message})`);
+  });
 
   if (initialResponse.status !== 402) {
     throw new Error(`Expected 402, got ${initialResponse.status}`);
@@ -43,10 +48,8 @@ export async function fetchPremiumData(
     throw new Error('Missing PAYMENT-REQUIRED header');
   }
 
-  // Step 3: Create open delegation + encode payment signature
-  // const openDelegation = createOpenDelegation({ ... });
-  // const encoded = encodeDelegations([openDelegation]);
-  const paymentSignature = 'mock-payment-signature'; // TODO: wire up SDK
+  // Step 3: Build payment signature using an open delegation encoded as ERC-7710 bytes
+  const paymentSignature = await buildPaymentSignature();
 
   // Step 4: Retry with payment
   const paidResponse = await fetch(url, {
@@ -58,6 +61,48 @@ export async function fetchPremiumData(
   }
 
   return paidResponse.json();
+}
+
+async function buildPaymentSignature(): Promise<string> {
+  const { createOpenDelegation, getSmartAccountsEnvironment, ScopeType, signDelegation } =
+    await import('@metamask/smart-accounts-kit');
+  const { encodeDelegations } = await import('@metamask/delegation-core');
+  const { privateKeyToAccount } = await import('viem/accounts');
+
+  const dataWorkerKey = process.env.PRIVATE_KEY_DATA_WORKER as `0x${string}`;
+  if (!dataWorkerKey) throw new Error('Missing env PRIVATE_KEY_DATA_WORKER');
+
+  const env = getSmartAccountsEnvironment(CHAIN_ID);
+  const dataWorkerAddr = privateKeyToAccount(dataWorkerKey).address;
+
+  // Open delegation: any redeemer can claim (one-time payment authorization)
+  const openDeleg = createOpenDelegation({
+    environment: env,
+    from: dataWorkerAddr,
+    scope: {
+      type: ScopeType.Erc20TransferAmount,
+      tokenAddress: USDC_ADDRESS,
+      maxAmount: BigInt('10000'), // 0.01 USDC in raw units
+    },
+  }) as {
+    delegate: `0x${string}`;
+    delegator: `0x${string}`;
+    authority: `0x${string}`;
+    caveats: { enforcer: `0x${string}`; terms: `0x${string}`; args: `0x${string}` }[];
+    salt: `0x${string}`;
+    signature: `0x${string}`;
+  };
+
+  const signature = await signDelegation({
+    privateKey: dataWorkerKey,
+    delegation: openDeleg,
+    delegationManager: env.DelegationManager,
+    chainId: CHAIN_ID,
+    allowInsecureUnrestrictedDelegation: true,
+  });
+
+  const signed = { ...openDeleg, signature };
+  return encodeDelegations([signed] as unknown as Parameters<typeof encodeDelegations>[0]);
 }
 
 function delay(ms: number): Promise<void> {

@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: [
+    "@metamask/smart-accounts-kit",
+    "@metamask/delegation-core",
+    "viem",
+  ],
 };
 
 export default nextConfig;

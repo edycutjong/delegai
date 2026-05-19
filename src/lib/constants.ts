@@ -42,6 +42,11 @@ export function toUsdcRaw(amount: number): string {
   return String(Math.round(amount * 10 ** USDC_DECIMALS));
 }
 
+// ── Token Addresses ──────────────────────────────────────
+
+export const USDC_ADDRESS =
+  (process.env.USDC_ADDRESS || '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238') as `0x${string}`;
+
 // ── 1Shot Relay ─────────────────────────────────────────
 
 export const ONESHOT_ENDPOINT =

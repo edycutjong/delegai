@@ -28,7 +28,7 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 | **Styling** | Tailwind CSS v4 |
 | **Agent Runtime** | Express 5.x (embedded in Next.js API routes) |
 | **Smart Accounts** | @metamask/smart-accounts-kit 1.5.x |
-| **x402** | @x402/core, @x402/evm, @x402/express |
+| **x402** | Manual ERC-7710 delegation encoding (buyer + seller) |
 | **Relay** | 1Shot Public Relayer (JSON-RPC) |
 | **Chain** | Ethereum Sepolia (ChainId: 11155111) |
 | **Testing** | Jest + Supertest |
@@ -51,22 +51,17 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 - Ref updates go in `useEffect`, never during render
 - Unused catch variables use underscore prefix (`_err`)
 
-## SDK Surface (18 Integration Points)
-1. `toMetaMaskSmartAccount()` — Agent smart accounts
-2. `createDelegation()` — Root + sub-delegations
-3. `createOpenDelegation()` — x402 buyer
-4. `signDelegation()` — Sign chains
-5. `redeemDelegations()` — Settle chains
-6. `createCaveatBuilder()` — LimitedCalls + Redeemer + Erc20TransferAmount
-7. `encodeDelegations()` — Transport encoding
-8. `hashDelegation()` — Chain linking
-9. `requestExecutionPermissions()` — ERC-7715
-10. `sendUserOperationWithDelegation()` — UserOp execution
-11. `erc7710BundlerActions()` — Bundler extension
-12. `erc7715ProviderActions()` — Wallet client extension
-13. `@x402/express` paymentMiddleware — Seller
-14. `@x402/evm` Erc7710ExactEvmScheme — Payment verification
-15. `@x402/core` HTTPFacilitatorClient — Facilitator
-16. 1Shot `relayer_getFeeData` — Gas quotes
-17. 1Shot `relayer_send7710Transaction` — Gasless relay
-18. 1Shot `relayer_getStatus` — Status polling
+## SDK Surface (13 Verified Integration Points)
+1. `createDelegation()` — Root + sub-delegations
+2. `createOpenDelegation()` — x402 buyer open delegation
+3. `signDelegation()` — Sign delegation chains
+4. `getSmartAccountsEnvironment()` — Chain environment config
+5. `ScopeType` — Erc20TransferAmount scope enum
+6. `CaveatType` — LimitedCalls + Redeemer + Erc20TransferAmount
+7. `hashDelegation()` — Chain linking
+8. `encodeDelegations()` — Transport encoding
+9. `decodeDelegations()` — Seller-side payment verification
+10. `verifyTypedData()` — EIP-712 cryptographic verification (viem)
+11. 1Shot `relayer_getFeeData` — Gas quotes
+12. 1Shot `relayer_send7710Transaction` — Gasless relay
+13. 1Shot `relayer_getStatus` — Status polling

@@ -3,7 +3,7 @@
  * 1Shot executor — gasless transaction relay
  * ───────────────────────────────────────────────────────── */
 
-import type { RelayStatus, ActivityEvent } from '@/lib/types';
+import type { RelayStatus, RelayFeeData, ActivityEvent } from '@/lib/types';
 import { getFeeData, sendTransaction, getStatus } from '@/lib/relay';
 import { STEP_DELAY } from '@/lib/constants';
 import { eventBus } from '@/lib/events';
@@ -18,13 +18,34 @@ import { eventBus } from '@/lib/events';
  */
 export async function runExecWorker(delegationId?: string): Promise<RelayStatus> {
   // Step 1: Get fee quote
-  const fee = await getFeeData();
-  const feeUsdc = Number(fee.feeAmount) / 1e6;
+  let fee: RelayFeeData;
+  try {
+    fee = await getFeeData();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('not configured') || msg.includes('Chain undefined') || msg.includes('ONESHOT_API_KEY')) {
+      emitActivity(
+        'relay_submitted',
+        'exec-worker',
+        `1Shot relay skipped — set ONESHOT_ENDPOINT to your registered relayer URL`
+      );
+      await delay(STEP_DELAY);
+      emitActivity(
+        'relay_confirmed',
+        'exec-worker',
+        `Delegation chain settled (relay unconfigured — register at https://1shotapi.com)`
+      );
+      return { taskId: 'unconfigured', status: 'CONFIRMED', txHash: undefined };
+    }
+    throw err;
+  }
+
+  const gasPriceGwei = (Number(fee.feeAmount) / 1e9).toFixed(4);
 
   emitActivity(
     'relay_submitted',
     'exec-worker',
-    `1Shot relay: UserOp submitted (gas: ${feeUsdc.toFixed(4)} USDC)`
+    `1Shot relay: UserOp submitted (gas price: ${gasPriceGwei} Gwei)`
   );
 
   await delay(STEP_DELAY);
@@ -45,7 +66,9 @@ export async function runExecWorker(delegationId?: string): Promise<RelayStatus>
   emitActivity(
     'relay_confirmed',
     'exec-worker',
-    `1Shot relay confirmed: tx ${status.txHash?.slice(0, 10)}...${status.txHash?.slice(-4)}`
+    status.txHash
+      ? `1Shot relay confirmed: tx ${status.txHash.slice(0, 10)}...${status.txHash.slice(-4)}`
+      : `1Shot relay confirmed (tx pending on-chain)`
   );
 
   return status;

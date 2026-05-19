@@ -37,6 +37,12 @@ export async function runOrchestration(): Promise<DelegationChain> {
     ? DEMO_ADDRESSES.execWorker
     : await createSmartAccount('exec-worker');
 
+  // In live mode, the exec delegation must be issued to the 1Shot wallet address
+  // so that 1Shot's msg.sender is authorized to call redeemDelegations.
+  const execDelegateAddr = (!IS_DEMO && process.env.ONESHOT_WALLET_ADDRESS)
+    ? process.env.ONESHOT_WALLET_ADDRESS
+    : execWorkerAddr;
+
   // Step 1: Request root permission
   emitActivity('delegation_created', 'user', 'Root delegation created: 50 USDC, 5 calls max');
   await delay(STEP_DELAY);
@@ -67,11 +73,10 @@ export async function runOrchestration(): Promise<DelegationChain> {
   // Step 3: Create sub-delegation for Exec Worker
   const execDelegation = await createDelegationWithCaveats({
     delegator: masterAddr,
-    delegate: execWorkerAddr,
+    delegate: execDelegateAddr,
     caveats: [
       { type: 'Erc20TransferAmount', value: toUsdcRaw(WORKER_BUDGET_USDC) },
       { type: 'LimitedCalls', value: WORKER_MAX_CALLS },
-      { type: 'Redeemer', value: execWorkerAddr },
     ],
     parentDelegation: rootDelegation.id,
     signerRole: 'master',

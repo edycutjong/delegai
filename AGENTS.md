@@ -29,7 +29,7 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 | **Agent Runtime** | Express 5.x (embedded in Next.js API routes) |
 | **Smart Accounts** | @metamask/smart-accounts-kit 1.5.x |
 | **x402** | Manual ERC-7710 delegation encoding (buyer + seller) |
-| **Relay** | 1Shot Public Relayer (JSON-RPC) |
+| **Relay** | 1Shot Public Relayer (REST API, OAuth2) |
 | **Chain** | Ethereum Sepolia (ChainId: 11155111) |
 | **Testing** | Jest + Supertest |
 | **Deploy** | Vercel |
@@ -51,7 +51,7 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 - Ref updates go in `useEffect`, never during render
 - Unused catch variables use underscore prefix (`_err`)
 
-## SDK Surface (13 Verified Integration Points)
+## SDK Surface (18 Verified Integration Points)
 1. `createDelegation()` — Root + sub-delegations
 2. `createOpenDelegation()` — x402 buyer open delegation
 3. `signDelegation()` — Sign delegation chains
@@ -62,6 +62,11 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 8. `encodeDelegations()` — Transport encoding
 9. `decodeDelegations()` — Seller-side payment verification
 10. `verifyTypedData()` — EIP-712 cryptographic verification (viem)
-11. 1Shot `relayer_getFeeData` — Gas quotes
-12. 1Shot `relayer_send7710Transaction` — Gasless relay
-13. 1Shot `relayer_getStatus` — Status polling
+11. 1Shot `getFeeData` — Gas quotes (REST API)
+12. 1Shot `sendTransaction` — Gasless relay (REST API)
+13. 1Shot `getStatus` — Status polling (REST API)
+14. `createCaveatBuilder()` — Chainable caveat builder (`@metamask/smart-accounts-kit/utils`)
+15. `toMetaMaskSmartAccount(Implementation.Stateless7702)` — EIP-7702 account upgrade
+16. `erc7710BundlerActions` — Bundler client extension (`@metamask/smart-accounts-kit/actions`)
+17. `erc7715ProviderActions` — Provider client extension (`@metamask/smart-accounts-kit/actions`)
+18. `sendUserOperationWithDelegation` — User op relay via ERC-7710 bundler

@@ -101,7 +101,7 @@ export default function LandingPage() {
         {/* SDK Stats */}
         <div className="mt-12 grid grid-cols-3 gap-4 max-w-md mx-auto">
           {[
-            { label: "SDK APIs", value: "13", color: "text-primary" },
+            { label: "SDK APIs", value: "18", color: "text-primary" },
             { label: "Delegation Depth", value: "3", color: "text-info" },
             { label: "Tracks", value: "5/5", color: "text-success" },
           ].map((stat) => (

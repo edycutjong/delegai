@@ -150,8 +150,8 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
       {chain && step === 'complete' && (
         <div className="mt-5 relative flex items-center justify-center">
           {/* Ring explosion layers */}
-          <span className="absolute inset-0 rounded-xl border border-success/50 animate-settle-ring" />
-          <span className="absolute inset-0 rounded-xl border border-success/25 animate-settle-ring-2" />
+          <span className="absolute inset-0 rounded-xl border border-success/50 animate-settle-ring pointer-events-none" />
+          <span className="absolute inset-0 rounded-xl border border-success/25 animate-settle-ring-2 pointer-events-none" />
 
           <div className="relative w-full p-3 rounded-xl bg-success/10 border border-success/40 text-center animate-settle-appear">
             <div className="flex items-center justify-center gap-2 mb-1">

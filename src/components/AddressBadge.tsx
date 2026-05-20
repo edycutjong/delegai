@@ -56,20 +56,16 @@ export function AddressBadge({
   if (minimal) {
     return (
       <span
-        className={`group relative inline-flex items-center gap-1 font-mono cursor-pointer ${className}`}
+        className={`inline-flex items-center gap-1 font-mono cursor-pointer hover:opacity-100 transition-opacity ${className}`}
         onClick={handleCopy}
-        title={address}
+        title={copied ? 'Copied!' : `Click to copy: ${address}`}
       >
         <span>{truncated}</span>
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {copied ? (
-            <Check size={10} className="text-success" />
-          ) : (
-            <Copy size={10} className="text-text-muted" />
-          )}
-        </span>
-
-
+        {copied ? (
+          <Check size={10} className="text-success shrink-0" />
+        ) : (
+          <Copy size={10} className="text-text-muted shrink-0 opacity-50" />
+        )}
       </span>
     );
   }

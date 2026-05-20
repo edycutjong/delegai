@@ -43,7 +43,12 @@ const EVENT_TO_STEP: Partial<Record<ActivityEvent['type'], DemoStep>> = {
 };
 
 export default function DashboardPage() {
-  const [agents, setAgents] = useState<Agent[]>(() => createMockAgents());
+  const [agents, setAgents] = useState<Agent[]>(() => {
+    const base = createMockAgents();
+    // In live mode, clear placeholder addresses — real ones arrive via addresses_resolved event
+    if (IS_LIVE) return base.map((a) => ({ ...a, address: '' }));
+    return base;
+  });
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [step, setStep] = useState<DemoStep>('idle');
   const [isRunning, setIsRunning] = useState(false);

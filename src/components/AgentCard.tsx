@@ -84,16 +84,26 @@ export function AgentCard({ agent }: AgentCardProps) {
           {/* Avatar with optional active ring */}
           <div className="relative shrink-0">
             <div
-              className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
               style={{ backgroundColor: `${color}20`, color }}
             >
               {ROLE_INITIAL[agent.role] ?? agent.role[0].toUpperCase()}
             </div>
             {isActive && (
               <span
-                className="absolute inset-0 rounded-md animate-ping-ring opacity-60"
+                className="absolute inset-0 rounded-full animate-ping-ring opacity-60"
                 style={{ backgroundColor: `${color}40` }}
               />
+            )}
+            {isDone && (
+              <span
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center animate-fade-in-up"
+                style={{ backgroundColor: color }}
+              >
+                <svg viewBox="0 0 8 8" className="w-2 h-2">
+                  <polyline points="1,4 3,6.5 7,1.5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             )}
           </div>
           <span className="text-sm font-semibold">{ROLE_LABELS[agent.role]}</span>
@@ -118,9 +128,11 @@ export function AgentCard({ agent }: AgentCardProps) {
 
       <p className="text-xs text-text-muted mb-3">{ROLE_DESCRIPTIONS[agent.role]}</p>
 
-      <div className="mb-2">
-        <AddressBadge address={agent.address} />
-      </div>
+      {agent.address && (
+        <div className="mb-2">
+          <AddressBadge address={agent.address} minimal className="text-xs text-text-muted" />
+        </div>
+      )}
 
       {agent.budget.allocated > 0 && (
         <BudgetMeter
@@ -138,17 +150,6 @@ export function AgentCard({ agent }: AgentCardProps) {
         </div>
       )}
 
-      {/* Done checkmark overlay */}
-      {isDone && (
-        <div
-          className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center animate-fade-in-up"
-          style={{ backgroundColor: `${color}20`, animationDelay: '0.1s' }}
-        >
-          <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" style={{ color }}>
-            <polyline points="1.5,5 4,7.5 8.5,2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      )}
     </div>
   );
 }

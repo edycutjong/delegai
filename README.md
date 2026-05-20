@@ -75,6 +75,9 @@ graph TD
     DW -->|"x402 payment"| API[💰 Premium Data API]
     EW -->|"1Shot relay"| CHAIN[⛓️ Sepolia]
     M -->|"settle()"| U
+    V[🧠 Venice AI] -->|"private LLM reasoning"| M
+    V -->|"scope analysis"| DW
+    V -->|"execution plan"| EW
 ```
 
 ## 🏆 Sponsor Tracks Targeted

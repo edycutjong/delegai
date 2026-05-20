@@ -1,3 +1,5 @@
+'use client';
+
 import { CheckCircle2 } from 'lucide-react';
 import type { Agent, DelegationChain, DemoStep } from '@/lib/types';
 import { AGENT_COLORS } from '@/lib/constants';
@@ -8,16 +10,42 @@ interface DelegationTreeProps {
   step: DemoStep;
 }
 
+const STEP_ORDER: DemoStep[] = [
+  'idle',
+  'granting_permission',
+  'creating_root_delegation',
+  'redelegating_data_worker',
+  'redelegating_exec_worker',
+  'x402_payment',
+  'x402_data_received',
+  'relay_submitting',
+  'relay_confirmed',
+  'settling',
+  'complete',
+];
+
+function stepIndex(s: DemoStep) {
+  return STEP_ORDER.indexOf(s);
+}
+
 export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
-  const user = agents.find((a) => a.role === 'user');
-  const master = agents.find((a) => a.role === 'master');
+  const user       = agents.find((a) => a.role === 'user');
+  const master     = agents.find((a) => a.role === 'master');
   const dataWorker = agents.find((a) => a.role === 'data-worker');
   const execWorker = agents.find((a) => a.role === 'exec-worker');
 
-  const isActive = step !== 'idle';
+  const si = stepIndex(step);
+  const isActive     = si > 0;
+  const masterActive = si >= stepIndex('creating_root_delegation');
+  const workersActive = si >= stepIndex('redelegating_data_worker');
+
+  // Is the root connector actively flowing?
+  const rootFlowing = isActive && si < stepIndex('complete') && masterActive;
+  const subFlowing  = workersActive && si < stepIndex('complete');
 
   return (
     <div className="glass-card-glow p-6 min-h-[400px]">
+
       {/* User Node */}
       <TreeNode
         label="User (EOA)"
@@ -26,50 +54,113 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
         status={user?.status}
         budget="50 USDC · 5 calls"
         isActive={isActive}
+        enterDelay={0}
       />
 
-      {/* Connector */}
-      <div className={`ml-6 pl-4 border-l-2 py-2 transition-all duration-500 ${isActive ? 'border-primary/60 animate-tree-flow' : 'border-primary/20'}`}>
-        {/* Master Node */}
-        <TreeNode
-          label="Master Agent"
-          address={master?.address}
-          color={AGENT_COLORS['master']}
-          status={master?.status}
-          budget="Redelegates ↓"
-          isActive={isActive && step !== 'granting_permission'}
-        />
-
-        <div className={`ml-6 pl-4 border-l-2 py-2 space-y-3 transition-all duration-500 ${isActive && step !== 'granting_permission' && step !== 'creating_root_delegation' ? 'border-info/60 animate-tree-flow' : 'border-info/20'}`}>
-          {/* Data Worker */}
-          <TreeNode
-            label="Data Worker"
-            address={dataWorker?.address}
-            color={AGENT_COLORS['data-worker']}
-            status={dataWorker?.status}
-            budget={(dataWorker?.budget.allocated ?? 0) > 0 ? `${dataWorker!.budget.allocated} USDC · x402` : 'Awaiting delegation'}
-            isActive={isActive && ['x402_payment', 'x402_data_received', 'relay_submitting', 'relay_confirmed', 'settling', 'complete'].includes(step)}
+      {/* Root connector + Master */}
+      <div className="flex ml-3.5" style={{ minHeight: 32 }}>
+        {/* Connector line */}
+        <div className="relative flex flex-col items-center" style={{ width: 2 }}>
+          <div
+            className={`w-full flex-1 rounded-full transition-all duration-700 ${
+              rootFlowing ? 'animate-dash-flow' : isActive ? 'bg-primary/30' : 'bg-border'
+            }`}
           />
+        </div>
 
-          {/* Exec Worker */}
-          <TreeNode
-            label="Exec Worker"
-            address={execWorker?.address}
-            color={AGENT_COLORS['exec-worker']}
-            status={execWorker?.status}
-            budget={(execWorker?.budget.allocated ?? 0) > 0 ? `${execWorker!.budget.allocated} USDC · 1Shot` : 'Awaiting delegation'}
-            isActive={isActive && ['relay_submitting', 'relay_confirmed', 'settling', 'complete'].includes(step)}
-          />
+        <div className="flex-1 pl-4 pt-1 pb-1">
+          {masterActive ? (
+            <TreeNode
+              label="Master Agent"
+              address={master?.address}
+              color={AGENT_COLORS['master']}
+              status={master?.status}
+              budget="Redelegates ↓"
+              isActive={masterActive}
+              enterDelay={120}
+            />
+          ) : (
+            <div className="h-14 rounded-lg border border-dashed border-border opacity-30 flex items-center px-3">
+              <span className="text-xs text-text-muted font-mono">Awaiting root delegation…</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Settlement Status */}
+      {/* Sub-delegation connectors + workers */}
+      {masterActive && (
+        <div className="flex ml-3.5">
+          {/* Vertical spine */}
+          <div className="relative flex flex-col items-center" style={{ width: 2 }}>
+            <div
+              className={`w-full flex-1 rounded-full transition-all duration-700 ${
+                subFlowing ? 'animate-dash-flow-violet' : workersActive ? 'bg-info/30' : 'bg-border'
+              }`}
+            />
+          </div>
+
+          <div className="flex-1 pl-4 pt-1 space-y-3 pb-1">
+            {/* Data Worker */}
+            {workersActive ? (
+              <TreeNode
+                label="Data Worker"
+                address={dataWorker?.address}
+                color={AGENT_COLORS['data-worker']}
+                status={dataWorker?.status}
+                budget={
+                  (dataWorker?.budget.allocated ?? 0) > 0
+                    ? `${dataWorker!.budget.allocated} USDC · x402`
+                    : 'Awaiting delegation'
+                }
+                isActive={si >= stepIndex('x402_payment')}
+                enterDelay={200}
+              />
+            ) : (
+              <div className="h-14 rounded-lg border border-dashed border-border opacity-30 flex items-center px-3">
+                <span className="text-xs text-text-muted font-mono">Data Worker slot…</span>
+              </div>
+            )}
+
+            {/* Exec Worker */}
+            {si >= stepIndex('redelegating_exec_worker') ? (
+              <TreeNode
+                label="Exec Worker"
+                address={execWorker?.address}
+                color={AGENT_COLORS['exec-worker']}
+                status={execWorker?.status}
+                budget={
+                  (execWorker?.budget.allocated ?? 0) > 0
+                    ? `${execWorker!.budget.allocated} USDC · 1Shot`
+                    : 'Awaiting delegation'
+                }
+                isActive={si >= stepIndex('relay_submitting')}
+                enterDelay={320}
+              />
+            ) : (
+              <div className="h-14 rounded-lg border border-dashed border-border opacity-30 flex items-center px-3">
+                <span className="text-xs text-text-muted font-mono">Exec Worker slot…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Settlement block */}
       {chain && step === 'complete' && (
-        <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/30 text-center flex flex-col items-center animate-fade-in-up">
-          <p className="text-success text-sm font-semibold flex items-center gap-2 justify-center"><CheckCircle2 size={16} /> Chain Settled</p>
-          <p className="text-xs text-text-muted mt-1 font-mono">
-            All delegations consumed and verified
-          </p>
+        <div className="mt-5 relative flex items-center justify-center">
+          {/* Ring explosion layers */}
+          <span className="absolute inset-0 rounded-xl border border-success/50 animate-settle-ring" />
+          <span className="absolute inset-0 rounded-xl border border-success/25 animate-settle-ring-2" />
+
+          <div className="relative w-full p-3 rounded-xl bg-success/10 border border-success/40 text-center animate-settle-appear">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <CheckCircle2 size={16} className="text-success" />
+              <p className="text-success text-sm font-semibold">Chain Settled on Sepolia</p>
+            </div>
+            <p className="text-xs text-text-muted font-mono">
+              All delegations consumed · ERC-7710 verified
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -83,6 +174,7 @@ function TreeNode({
   status,
   budget,
   isActive,
+  enterDelay,
 }: {
   label: string;
   address?: string;
@@ -90,31 +182,75 @@ function TreeNode({
   status?: string;
   budget: string;
   isActive: boolean;
+  enterDelay: number;
 }) {
+  const isWorking = status === 'working' || status === 'delegating';
+  const isDone    = status === 'done';
+
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-500 ${
-        isActive ? 'bg-bg-elevated/40' : 'opacity-40'
-      } ${status === 'working' ? 'animate-glow-pulse' : ''}`}
-      style={{ borderLeft: `3px solid ${isActive ? color : 'transparent'}` }}
+      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-500 relative overflow-hidden animate-node-enter ${
+        isWorking ? 'animate-glow-pulse' : ''
+      }`}
+      style={{
+        animationDelay: `${enterDelay}ms`,
+        borderLeft: `3px solid ${isActive ? color : 'transparent'}`,
+        backgroundColor: isActive ? 'rgba(51, 65, 85, 0.3)' : 'transparent',
+        opacity: isActive ? 1 : 0.35,
+        transition: 'background-color 0.4s, opacity 0.4s, border-color 0.4s',
+      }}
     >
-      <div
-        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-        style={{ backgroundColor: `${color}20`, color }}
-      >
-        {label[0]}
+      {/* Avatar */}
+      <div className="relative shrink-0">
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+          style={{ backgroundColor: `${color}20`, color }}
+        >
+          {label[0]}
+        </div>
+        {isWorking && (
+          <span
+            className="absolute inset-0 rounded-full animate-ping-ring"
+            style={{ backgroundColor: `${color}35` }}
+          />
+        )}
+        {isDone && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: color }}
+          >
+            <svg viewBox="0 0 8 8" className="w-2 h-2 text-bg-base">
+              <polyline points="1,4 3,6.5 7,1.5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        )}
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold">{label}</p>
-        <p className="text-xs text-text-muted font-mono">
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold leading-tight">{label}</p>
+        <p
+          key={budget}
+          className="text-xs text-text-muted font-mono animate-step-flash"
+        >
           {budget}
         </p>
         {address && (
-          <p className="text-xs text-text-muted font-mono truncate">
-            {address.slice(0, 10)}...
+          <p className="text-xs text-text-muted font-mono truncate opacity-60">
+            {address.slice(0, 10)}…
           </p>
         )}
       </div>
+
+      {/* Status dot */}
+      {isActive && (
+        <div
+          className={`w-2 h-2 rounded-full shrink-0 ${
+            isDone    ? 'bg-success' :
+            isWorking ? 'bg-warning animate-pulse' :
+            'bg-text-muted'
+          }`}
+        />
+      )}
     </div>
   );
 }

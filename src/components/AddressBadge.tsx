@@ -69,10 +69,7 @@ export function AddressBadge({
           )}
         </span>
 
-        {/* Tooltip */}
-        <span className="pointer-events-none absolute left-0 -top-9 z-50 hidden group-hover:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-surface border border-border shadow-lg whitespace-nowrap text-[10px] text-text-primary font-mono animate-fade-in-up">
-          {address}
-        </span>
+
       </span>
     );
   }
@@ -105,11 +102,7 @@ export function AddressBadge({
         )}
       </button>
 
-      {/* Tooltip showing full address */}
-      <span className="pointer-events-none absolute left-0 -top-9 z-50 hidden group-hover:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-surface border border-border shadow-lg whitespace-nowrap text-[10px] text-text-primary font-mono animate-fade-in-up">
-        {address}
-        {copied && <span className="text-success">Copied!</span>}
-      </span>
+
     </span>
   );
 }

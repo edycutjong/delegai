@@ -23,6 +23,17 @@ export function Header({ stepLabel }: HeaderProps) {
           <span className="text-xs font-mono text-text-muted hidden sm:inline">
             {stepLabel}
           </span>
+          <a
+            href="/pitch/index.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-bg-base border border-border text-xs font-mono text-text-secondary hover:text-primary hover:border-primary/40 transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            Pitch
+          </a>
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-bg-base border border-border text-xs font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-success" />
             <span className="text-text-secondary">Sepolia</span>

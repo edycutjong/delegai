@@ -13,6 +13,7 @@ import {
   CHAIN_ID,
   USDC_ADDRESS,
   WORKER_BUDGET_USDC,
+  RPC_URL,
 } from './constants';
 import { createMockDelegationChain } from './mock-data';
 
@@ -30,6 +31,12 @@ type SdkDelegation = {
 // Module-level store maps local delegation IDs → signed SDK delegations
 // Used for sub-delegation creation (needs full parent object)
 const _delegationStore = new Map<string, SdkDelegation>();
+
+function randomSalt(): `0x${string}` {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return `0x${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+}
 
 function getPrivateKey(role: string): `0x${string}` {
   const keyMap: Record<string, string | undefined> = {
@@ -166,6 +173,7 @@ export async function requestPermissions(): Promise<Delegation> {
     environment: env,
     from: userAddr,
     to: masterAddr,
+    salt: randomSalt(),
     scope: {
       type: ScopeType.Erc20TransferAmount,
       tokenAddress: USDC_ADDRESS,
@@ -240,6 +248,7 @@ export async function createDelegationWithCaveats(params: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createDelegationAny = createDelegation as (opts: any) => SdkDelegation;
+  const salt = randomSalt();
   const delegation = parentSdk
     ? createDelegationAny({
         environment: env,
@@ -247,11 +256,13 @@ export async function createDelegationWithCaveats(params: {
         to: delegateAddr,
         parentDelegation: parentSdk,
         caveats: caveatBuilder,
+        salt,
       })
     : createDelegationAny({
         environment: env,
         from: delegatorAddr,
         to: delegateAddr,
+        salt,
         scope: {
           type: 'erc20TransferAmount',
           tokenAddress: USDC_ADDRESS,
@@ -347,7 +358,10 @@ export async function createEip7702Authorization(role: string): Promise<Eip7702A
   const contractAddress = env.implementations.EIP7702StatelessDeleGatorImpl as `0x${string}`;
 
   // toMetaMaskSmartAccount with Stateless7702 — no deployment, EOA IS the smart account
-  const client = createPublicClient({ transport: http() });
+  const client = createPublicClient({
+    chain: { id: CHAIN_ID } as Parameters<typeof createPublicClient>[0]['chain'],
+    transport: http(RPC_URL),
+  });
   await toMetaMaskSmartAccount({
     client,
     implementation: Implementation.Stateless7702,

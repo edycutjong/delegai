@@ -51,6 +51,11 @@ export function toUsdcRaw(amount: number): string {
   return String(Math.round(amount * 10 ** USDC_DECIMALS));
 }
 
+// ── RPC ─────────────────────────────────────────────────
+
+export const RPC_URL =
+  process.env.RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+
 // ── Token Addresses ──────────────────────────────────────
 
 export const USDC_ADDRESS =

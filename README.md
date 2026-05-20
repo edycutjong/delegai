@@ -8,7 +8,7 @@
   [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://delegai.edycu.dev)
   [![Pitch Video](https://img.shields.io/badge/🎬_Pitch-Video-ef4444?style=for-the-badge)](https://youtu.be/delegai-demo)
   [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](https://delegai.edycu.dev/pitch)
-  [![Built for HackQuest](https://img.shields.io/badge/HackQuest-MetaMask_x_1Shot-8b5cf6?style=for-the-badge)](https://www.hackquest.io/hackathons/MetaMask-Smart-Accounts-Kit-x-1Shot-API-Dev-Cook-Off-x-Venice-AI)
+  [![Built for HackQuest](https://img.shields.io/badge/HackQuest-MetaMask_×_1Shot_×_Venice_AI-8b5cf6?style=for-the-badge)](https://www.hackquest.io/hackathons/MetaMask-Smart-Accounts-Kit-x-1Shot-API-x-Venice-AI-Dev-Cook-Off)
 
   <br/>
 
@@ -61,6 +61,7 @@ User (50 USDC, 5 calls max)
 | **Agent Runtime** | Express 5.x (embedded API routes) |
 | **Smart Accounts** | MetaMask Smart Accounts Kit — 18 API integrations |
 | **Payments** | x402 (buyer + seller) |
+| **Agent Intelligence** | Venice AI — private LLM inference (llama-3.3-70b) |
 | **Relay** | 1Shot Public Relayer (JSON-RPC) |
 | **Chain** | Ethereum Sepolia (ChainId: 11155111) |
 | **Testing** | Jest + Supertest |
@@ -83,6 +84,7 @@ graph TD
 | **Best A2A Coordination** | $1,500 | 3-level redelegation with `parentDelegation` linking |
 | **Best Agent** | $1,500 | Autonomous agent fleet (orchestrator + 2 workers) |
 | **Best x402 + ERC-7710** | $1,500 | Full buyer (`@x402/core`) + seller (`@x402/express`) |
+| **Best Use of Venice AI** | $1,500 | Private LLM reasoning in all 3 agents via `callVenice()` |
 | **Social Media** | Bonus | @MetaMaskDev integration posts |
 | **Feedback** | Bonus | SDK feedback document |
 
@@ -163,4 +165,4 @@ delegai/
 
 ## 🙏 Acknowledgments
 
-Built for the **MetaMask Smart Accounts Kit × 1Shot API Dev Cook Off** on HackQuest. Thank you to MetaMask, 1Shot, and the x402 team for the SDK access and documentation.
+Built for the **MetaMask Smart Accounts Kit × 1Shot API × Venice AI Dev Cook Off** on HackQuest. Thank you to MetaMask, 1Shot, Venice AI, and the x402 team for the SDK access and documentation.

@@ -29,6 +29,7 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 | **Agent Runtime** | Express 5.x (embedded in Next.js API routes) |
 | **Smart Accounts** | @metamask/smart-accounts-kit 1.5.x |
 | **x402** | Manual ERC-7710 delegation encoding (buyer + seller) |
+| **Agent Intelligence** | Venice AI API — private LLM inference (llama-3.3-70b) |
 | **Relay** | 1Shot Public Relayer (REST API, OAuth2) |
 | **Chain** | Ethereum Sepolia (ChainId: 11155111) |
 | **Testing** | Jest + Supertest |

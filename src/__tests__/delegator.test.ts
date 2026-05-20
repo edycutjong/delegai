@@ -30,7 +30,20 @@ jest.mock('@metamask/smart-accounts-kit', () => ({
   createDelegation: jest.fn(() => ({ ...mockSdkDelegation })),
   getSmartAccountsEnvironment: jest.fn(() => ({
     DelegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
+    SimpleFactory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
+    implementations: {
+      HybridDeleGatorImpl: '0x48dBe696A4D990079e039489bA2053B36E8FFEC4',
+      EIP7702StatelessDeleGatorImpl: '0xEIP7702StatelessDeleGator00000000000000',
+    },
   })),
+  contracts: {
+    HybridDeleGator: {
+      encode: {
+        initializeHybridDeleGator: jest.fn(() => '0xinit' as `0x${string}`),
+      },
+    },
+    encodeProxyCreationCode: jest.fn(() => '0xproxy' as `0x${string}`),
+  },
   ScopeType: { Erc20TransferAmount: 'erc20TransferAmount' },
   CaveatType: {
     LimitedCalls: 'limitedCalls',
@@ -38,6 +51,8 @@ jest.mock('@metamask/smart-accounts-kit', () => ({
     Redeemer: 'redeemer',
   },
   signDelegation: jest.fn(() => Promise.resolve('0xfakesignature000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c' as `0x${string}`)),
+  toMetaMaskSmartAccount: jest.fn(() => Promise.resolve({ address: '0x0000000000000000000000000000000000000001' })),
+  Implementation: { Stateless7702: 'Stateless7702', Hybrid: 'Hybrid', MultiSig: 'MultiSig' },
 }));
 
 jest.mock('@metamask/delegation-core', () => ({
@@ -46,9 +61,34 @@ jest.mock('@metamask/delegation-core', () => ({
   decodeDelegations: jest.fn(),
 }));
 
+jest.mock('viem', () => ({
+  getContractAddress: jest.fn(() => '0x0000000000000000000000000000000000000099' as `0x${string}`),
+  pad: jest.fn(() => '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`),
+  createPublicClient: jest.fn(() => ({})),
+  http: jest.fn(() => ({})),
+}));
+
+jest.mock('@metamask/smart-accounts-kit/utils', () => ({
+  createCaveatBuilder: jest.fn(() => ({
+    addCaveat: jest.fn().mockReturnThis(),
+    build: jest.fn(() => []),
+  })),
+}));
+
 jest.mock('viem/accounts', () => ({
   privateKeyToAccount: jest.fn(() => ({
     address: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+    signMessage: jest.fn(),
+    signTypedData: jest.fn(),
+  })),
+  signAuthorization: jest.fn(() => Promise.resolve({
+    address: '0xEIP7702StatelessDeleGator00000000000000' as `0x${string}`,
+    chainId: 11155111,
+    nonce: 0,
+    r: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+    s: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+    v: BigInt(27),
+    yParity: 0,
   })),
 }));
 
@@ -64,6 +104,7 @@ import {
   requestPermissions,
   createDelegationWithCaveats,
   settleDelegationChain,
+  createEip7702Authorization,
   toUsdcRaw,
   ROOT_BUDGET_USDC,
   ROOT_MAX_CALLS,
@@ -118,8 +159,14 @@ describe('createSmartAccount — demo mode', () => {
 describe('createSmartAccount — live mode', () => {
   beforeEach(() => { _isDemo = false; });
 
-  it('returns address derived from private key', async () => {
+  it('returns smart account address for user role', async () => {
     const addr = await createSmartAccount('user');
+    expect(typeof addr).toBe('string');
+    expect(addr.startsWith('0x')).toBe(true);
+  });
+
+  it('returns EOA address for non-user roles', async () => {
+    const addr = await createSmartAccount('master');
     expect(typeof addr).toBe('string');
     expect(addr.startsWith('0x')).toBe(true);
   });
@@ -380,6 +427,57 @@ describe('settleDelegationChain — live mode', () => {
     const taskId = await settleDelegationChain(d.id);
     expect(typeof taskId).toBe('string');
     delete process.env.ONESHOT_WALLET_ADDRESS;
+  });
+});
+
+describe('createEip7702Authorization — demo mode', () => {
+  it('returns a mock authorization with correct shape', async () => {
+    const auth = await createEip7702Authorization('exec-worker');
+    expect(auth.contractAddress).toBeTruthy();
+    expect(auth.chainId).toBe(11155111);
+    expect(auth.nonce).toBe(0);
+    expect(auth.r).toBeTruthy();
+    expect(auth.s).toBeTruthy();
+    expect(typeof auth.yParity).toBe('number');
+  });
+});
+
+describe('createEip7702Authorization — live mode', () => {
+  beforeEach(() => { _isDemo = false; });
+
+  it('calls toMetaMaskSmartAccount and signAuthorization, returns signed auth', async () => {
+    const auth = await createEip7702Authorization('exec-worker');
+    const { toMetaMaskSmartAccount } = await import('@metamask/smart-accounts-kit');
+    const { signAuthorization } = await import('viem/accounts');
+    expect(toMetaMaskSmartAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ implementation: 'Stateless7702' })
+    );
+    expect(signAuthorization).toHaveBeenCalled();
+    expect(auth.contractAddress).toBeTruthy();
+    expect(typeof auth.chainId).toBe('number');
+    expect(typeof auth.yParity).toBe('number');
+  });
+
+  it('throws when private key env var is missing', async () => {
+    delete process.env.PRIVATE_KEY_EXEC_WORKER;
+    await expect(createEip7702Authorization('exec-worker')).rejects.toThrow(
+      'Missing env PRIVATE_KEY_EXEC_WORKER'
+    );
+  });
+
+  it('defaults yParity to 0 when signAuthorization returns undefined yParity', async () => {
+    const { signAuthorization } = await import('viem/accounts');
+    (signAuthorization as jest.Mock).mockResolvedValueOnce({
+      address: '0xEIP7702StatelessDeleGator00000000000000' as `0x${string}`,
+      chainId: 11155111,
+      nonce: 0,
+      r: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+      s: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+      v: BigInt(27),
+      yParity: undefined,
+    });
+    const auth = await createEip7702Authorization('exec-worker');
+    expect(auth.yParity).toBe(0);
   });
 });
 

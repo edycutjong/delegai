@@ -1,6 +1,7 @@
 import {
   CHAIN_ID,
   CHAIN_NAME,
+  BLOCK_EXPLORER,
   ROOT_BUDGET_USDC,
   ROOT_MAX_CALLS,
   WORKER_BUDGET_USDC,
@@ -19,6 +20,10 @@ describe('constants', () => {
 
   it('has correct chain name', () => {
     expect(CHAIN_NAME).toBe('Ethereum Sepolia');
+  });
+
+  it('has correct block explorer for Sepolia', () => {
+    expect(BLOCK_EXPLORER).toBe('https://sepolia.etherscan.io');
   });
 
   it('has correct delegation budget defaults', () => {
@@ -70,6 +75,43 @@ describe('constants', () => {
 
   it('has correct warning color token', () => {
     expect(COLORS.warning).toBe('#f59e0b');
+  });
+});
+
+describe('CHAIN_METADATA dynamic lookup', () => {
+  function loadWithChainId(chainId: number) {
+    let mod: typeof import('@/lib/constants');
+    jest.isolateModules(() => {
+      process.env.NEXT_PUBLIC_CHAIN_ID = String(chainId);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      mod = require('@/lib/constants');
+    });
+    delete process.env.NEXT_PUBLIC_CHAIN_ID;
+    return mod!;
+  }
+
+  it('resolves Ethereum Mainnet (chainId=1)', () => {
+    const mod = loadWithChainId(1);
+    expect(mod.CHAIN_NAME).toBe('Ethereum Mainnet');
+    expect(mod.BLOCK_EXPLORER).toBe('https://etherscan.io');
+  });
+
+  it('resolves Base Mainnet (chainId=8453)', () => {
+    const mod = loadWithChainId(8453);
+    expect(mod.CHAIN_NAME).toBe('Base Mainnet');
+    expect(mod.BLOCK_EXPLORER).toBe('https://basescan.org');
+  });
+
+  it('resolves Base Sepolia (chainId=84532)', () => {
+    const mod = loadWithChainId(84532);
+    expect(mod.CHAIN_NAME).toBe('Base Sepolia');
+    expect(mod.BLOCK_EXPLORER).toBe('https://sepolia.basescan.org');
+  });
+
+  it('falls back to generic name and etherscan for unknown chainId', () => {
+    const mod = loadWithChainId(999);
+    expect(mod.CHAIN_NAME).toBe('Chain 999');
+    expect(mod.BLOCK_EXPLORER).toBe('https://etherscan.io');
   });
 });
 

@@ -308,6 +308,35 @@ describe('live mode', () => {
     expect(data.status).toBe('PENDING');
   });
 
+  it('sendTransaction includes callbackUrl when ONESHOT_WEBHOOK_URL is set', async () => {
+    process.env.ONESHOT_CONTRACT_METHOD_ID = 'method-uuid';
+    process.env.ONESHOT_WEBHOOK_URL = 'https://my-app.vercel.app/api/relay/webhook';
+    mockToken();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ id: 'tx-webhook' }),
+    });
+    const relay = loadRelay(false);
+    await relay.sendTransaction();
+    const body = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(body.callbackUrl).toBe('https://my-app.vercel.app/api/relay/webhook');
+    delete process.env.ONESHOT_WEBHOOK_URL;
+  });
+
+  it('sendTransaction omits callbackUrl when ONESHOT_WEBHOOK_URL is not set', async () => {
+    process.env.ONESHOT_CONTRACT_METHOD_ID = 'method-uuid';
+    delete process.env.ONESHOT_WEBHOOK_URL;
+    mockToken();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: jest.fn().mockResolvedValue({ id: 'tx-no-webhook' }),
+    });
+    const relay = loadRelay(false);
+    await relay.sendTransaction();
+    const body = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(body.callbackUrl).toBeUndefined();
+  });
+
   it('sendTransaction sends empty permissionContexts when encodedDelegations is undefined', async () => {
     process.env.ONESHOT_CONTRACT_METHOD_ID = 'method-uuid';
     mockToken();

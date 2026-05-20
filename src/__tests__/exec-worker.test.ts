@@ -1,10 +1,12 @@
 import { runExecWorker } from '../agents/exec-worker';
 import { getFeeData, sendTransaction, getStatus } from '../lib/relay';
 import { settleDelegationChain } from '../lib/delegator';
+import { callVenice } from '../lib/venice';
 import { eventBus } from '../lib/events';
 
 jest.mock('../lib/relay');
 jest.mock('../lib/delegator');
+jest.mock('../lib/venice', () => ({ callVenice: jest.fn() }));
 jest.mock('../lib/events', () => ({
   eventBus: {
     emit: jest.fn(),
@@ -14,6 +16,7 @@ jest.mock('../lib/events', () => ({
 describe('Exec Worker', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (callVenice as jest.Mock).mockResolvedValue('Venice exec decision.');
   });
 
   it('runs the exec worker flow successfully', async () => {
@@ -26,18 +29,25 @@ describe('Exec Worker', () => {
     expect(result).toEqual({ txHash: '0x1234567890abcdef1234567890abcdef12345678' });
 
     expect(getFeeData).toHaveBeenCalledTimes(1);
+    expect(callVenice).toHaveBeenCalledTimes(1);
     expect(sendTransaction).toHaveBeenCalledTimes(1);
     expect(getStatus).toHaveBeenCalledWith('task-123');
 
-    expect(eventBus.emit).toHaveBeenCalledTimes(2);
+    expect(eventBus.emit).toHaveBeenCalledTimes(3);
 
     expect(eventBus.emit).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      type: 'ai_reasoning',
+      agent: 'exec-worker',
+      message: expect.stringContaining('Venice AI:'),
+    }));
+
+    expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
       type: 'relay_submitted',
       agent: 'exec-worker',
       message: expect.stringContaining('Gwei'),
     }));
 
-    expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
+    expect(eventBus.emit).toHaveBeenNthCalledWith(3, expect.objectContaining({
       type: 'relay_confirmed',
       agent: 'exec-worker',
       message: expect.stringContaining('1Shot relay confirmed: tx'),
@@ -97,7 +107,7 @@ describe('Exec Worker', () => {
 
     expect(result).toEqual({ status: 'PENDING' });
 
-    expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
+    expect(eventBus.emit).toHaveBeenNthCalledWith(3, expect.objectContaining({
       type: 'relay_confirmed',
       agent: 'exec-worker',
       message: expect.stringContaining('1Shot relay confirmed'),

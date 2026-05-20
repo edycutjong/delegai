@@ -1,10 +1,12 @@
 import { runOrchestration } from '../agents/orchestrator';
-import { createDelegationWithCaveats, requestPermissions, createSmartAccount } from '../lib/delegator';
+import { createDelegationWithCaveats, requestPermissions, createSmartAccount, createEip7702Authorization } from '../lib/delegator';
+import { callVenice } from '../lib/venice';
 import { eventBus } from '../lib/events';
 
 let _isDemo = false;
 
 jest.mock('../lib/delegator');
+jest.mock('../lib/venice', () => ({ callVenice: jest.fn() }));
 jest.mock('../lib/events', () => ({
   eventBus: {
     emit: jest.fn(),
@@ -32,6 +34,15 @@ describe('Orchestrator Worker', () => {
     (createDelegationWithCaveats as jest.Mock)
       .mockResolvedValueOnce({ id: 'sub-data-1' })
       .mockResolvedValueOnce({ id: 'sub-exec-1' });
+    (callVenice as jest.Mock).mockResolvedValue('Venice budget reasoning.');
+    (createEip7702Authorization as jest.Mock).mockResolvedValue({
+      contractAddress: '0x0000000000000000000000000000000000000001',
+      chainId: 11155111,
+      nonce: 0,
+      r: '0x01',
+      s: '0x01',
+      yParity: 0,
+    });
   });
 
   it('runs the orchestrator flow in live mode resolving real addresses', async () => {
@@ -47,7 +58,19 @@ describe('Orchestrator Worker', () => {
     expect(createSmartAccount).toHaveBeenCalledWith('exec-worker');
     expect(requestPermissions).toHaveBeenCalledTimes(1);
     expect(createDelegationWithCaveats).toHaveBeenCalledTimes(2);
-    expect(eventBus.emit).toHaveBeenCalledTimes(4);
+    expect(callVenice).toHaveBeenCalledTimes(1);
+    expect(createEip7702Authorization).toHaveBeenCalledWith('exec-worker');
+    expect(eventBus.emit).toHaveBeenCalledTimes(6);
+    expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'ai_reasoning',
+      agent: 'master',
+      message: expect.stringContaining('Venice AI:'),
+    }));
+    expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'delegation_created',
+      agent: 'master',
+      message: expect.stringContaining('EIP-7702'),
+    }));
   });
 
   it('runs the orchestrator flow in demo mode using DEMO_ADDRESSES', async () => {
@@ -56,6 +79,8 @@ describe('Orchestrator Worker', () => {
       .mockReset()
       .mockResolvedValueOnce({ id: 'sub-data-1' })
       .mockResolvedValueOnce({ id: 'sub-exec-1' });
+    (callVenice as jest.Mock).mockReset().mockResolvedValue('Demo Venice reasoning.');
+    (createEip7702Authorization as jest.Mock).mockReset().mockResolvedValue({ contractAddress: '0x01', chainId: 11155111, nonce: 0, r: '0x01', s: '0x01', yParity: 0 });
 
     const result = await runOrchestration();
 
@@ -77,6 +102,8 @@ describe('Orchestrator Worker', () => {
       .mockReset()
       .mockResolvedValueOnce({ id: 'sub-data-2' })
       .mockResolvedValueOnce({ id: 'sub-exec-2' });
+    (callVenice as jest.Mock).mockReset().mockResolvedValue('Venice reasoning.');
+    (createEip7702Authorization as jest.Mock).mockReset().mockResolvedValue({ contractAddress: '0x01', chainId: 11155111, nonce: 0, r: '0x01', s: '0x01', yParity: 0 });
 
     const result = await runOrchestration();
 

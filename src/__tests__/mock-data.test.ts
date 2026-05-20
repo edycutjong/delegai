@@ -104,8 +104,8 @@ describe('createMockDelegationChain', () => {
 });
 
 describe('createMockActivities', () => {
-  it('returns 9 activity events', () => {
-    expect(createMockActivities()).toHaveLength(9);
+  it('returns 13 activity events', () => {
+    expect(createMockActivities()).toHaveLength(13);
   });
 
   it('first event is delegation_created by user', () => {

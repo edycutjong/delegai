@@ -1,8 +1,23 @@
 let _isDemo = true;
 
+jest.mock('@x402/evm/exact/server', () => ({
+  ExactEvmScheme: class MockExactEvmScheme {
+    readonly scheme = 'exact';
+    async parsePrice(_price: unknown, _network: unknown) {
+      return { amount: '10000', asset: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' };
+    }
+    async enhancePaymentRequirements(requirements: unknown) {
+      return requirements;
+    }
+  },
+}));
+
+jest.mock('@x402/core/types', () => ({}), { virtual: true });
+
 jest.mock('@/lib/constants', () => ({
   get IS_DEMO() { return _isDemo; },
   CHAIN_ID: 11155111,
+  USDC_ADDRESS: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
   X402_FACILITATOR: 'https://test-facilitator.example.com',
   X402_COST_PER_CALL: 0.01,
 }));
@@ -40,7 +55,7 @@ jest.mock('viem', () => ({
 }));
 
 import { verifyTypedData } from 'viem';
-import { verifyPayment, getPaymentRequirements, X402_COST_PER_CALL } from '@/lib/seller';
+import { verifyPayment, getPaymentRequirements, X402_COST_PER_CALL, Erc7710ExactEvmScheme } from '@/lib/seller';
 
 let consoleSpy: jest.SpyInstance;
 
@@ -136,6 +151,53 @@ describe('getPaymentRequirements', () => {
     const headers = getPaymentRequirements();
     const parsed = JSON.parse(headers['PAYMENT-REQUIRED']);
     expect(parsed.maxAmountRequired).toBe(String(0.01 * 1e6));
+  });
+});
+
+describe('Erc7710ExactEvmScheme', () => {
+  const scheme = new Erc7710ExactEvmScheme();
+
+  it('has scheme = "exact"', () => {
+    expect(scheme.scheme).toBe('exact');
+  });
+
+  it('parsePrice returns AssetAmount for dollar string', async () => {
+    const result = await scheme.parsePrice('$0.01', 'eip155:11155111');
+    expect(result).toEqual(expect.objectContaining({ amount: expect.any(String), asset: expect.any(String) }));
+  });
+
+  it('parsePrice passes through AssetAmount objects unchanged', async () => {
+    const asset = { amount: '10000', asset: '0xusdctoken' };
+    const result = await scheme.parsePrice(asset as unknown as string, 'eip155:11155111');
+    expect(result).toEqual(asset);
+  });
+
+  it('parsePrice handles numeric price', async () => {
+    const result = await scheme.parsePrice(0.05, 'eip155:11155111');
+    expect(Number(result.amount)).toBeGreaterThan(0);
+  });
+
+  it('enhancePaymentRequirements injects erc7710 and chainId (no existing extra)', async () => {
+    const base = { scheme: 'exact', network: 'eip155:11155111', maxAmountRequired: '10000' } as unknown;
+    const result = await scheme.enhancePaymentRequirements(
+      base as Parameters<typeof scheme.enhancePaymentRequirements>[0],
+      { x402Version: 2, scheme: 'exact', network: 'eip155:11155111' },
+      []
+    );
+    expect((result as { extra?: { erc7710?: boolean } }).extra?.erc7710).toBe(true);
+    expect((result as { extra?: { chainId?: number } }).extra?.chainId).toBe(11155111);
+  });
+
+  it('enhancePaymentRequirements merges existing extra fields', async () => {
+    const base = { scheme: 'exact', network: 'eip155:11155111', maxAmountRequired: '10000', extra: { foo: 'bar' } } as unknown;
+    const result = await scheme.enhancePaymentRequirements(
+      base as Parameters<typeof scheme.enhancePaymentRequirements>[0],
+      { x402Version: 2, scheme: 'exact', network: 'eip155:11155111' },
+      []
+    );
+    const extra = (result as { extra?: Record<string, unknown> }).extra;
+    expect(extra?.erc7710).toBe(true);
+    expect(extra?.foo).toBe('bar');
   });
 });
 

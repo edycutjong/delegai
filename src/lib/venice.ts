@@ -40,6 +40,8 @@ export async function callVenice(
   });
 
   if (!res.ok) {
+    // 402 = out of credits, 429 = rate limited — degrade gracefully rather than crash
+    if (res.status === 402 || res.status === 429) return demoFallback;
     throw new Error(`Venice API error: ${res.status} ${res.statusText}`);
   }
 

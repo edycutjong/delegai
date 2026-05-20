@@ -78,7 +78,19 @@ describe('Venice AI client', () => {
     expect(result).toBe(FALLBACK);
   });
 
-  it('throws when Venice API returns a non-ok response', async () => {
+  it('returns demoFallback when Venice returns 402 (out of credits)', async () => {
+    process.env.VENICE_API_KEY = 'test-key';
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 402,
+      statusText: 'Payment Required',
+    });
+
+    const result = await callVenice(MESSAGES, FALLBACK);
+    expect(result).toBe(FALLBACK);
+  });
+
+  it('returns demoFallback when Venice returns 429 (rate limited)', async () => {
     process.env.VENICE_API_KEY = 'test-key';
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: false,
@@ -86,7 +98,19 @@ describe('Venice AI client', () => {
       statusText: 'Too Many Requests',
     });
 
-    await expect(callVenice(MESSAGES, FALLBACK)).rejects.toThrow('Venice API error: 429');
+    const result = await callVenice(MESSAGES, FALLBACK);
+    expect(result).toBe(FALLBACK);
+  });
+
+  it('throws when Venice API returns other non-ok status (e.g. 500)', async () => {
+    process.env.VENICE_API_KEY = 'test-key';
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+    });
+
+    await expect(callVenice(MESSAGES, FALLBACK)).rejects.toThrow('Venice API error: 500');
   });
 
   it('returns demoFallback when choices message content is undefined', async () => {

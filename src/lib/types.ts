@@ -78,6 +78,7 @@ export type ActivityType =
   | 'relay_submitted'
   | 'relay_confirmed'
   | 'chain_settled'
+  | 'ai_reasoning'
   | 'error';
 
 export interface ActivityEvent {
@@ -87,6 +88,17 @@ export interface ActivityEvent {
   message: string;
   timestamp: number;
   metadata?: Record<string, unknown>;
+}
+
+// ── EIP-7702 Types ──────────────────────────────────────
+
+export interface Eip7702Authorization {
+  contractAddress: `0x${string}`;
+  chainId: number;
+  nonce: number;
+  r: `0x${string}`;
+  s: `0x${string}`;
+  yParity: number;
 }
 
 // ── x402 Types ──────────────────────────────────────────

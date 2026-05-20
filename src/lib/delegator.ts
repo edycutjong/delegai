@@ -3,7 +3,7 @@
  * Smart account creation + delegation chain management
  * ───────────────────────────────────────────────────────── */
 
-import type { Delegation, Caveat } from './types';
+import type { Delegation, Caveat, Eip7702Authorization } from './types';
 import {
   IS_DEMO,
   DEMO_ADDRESSES,
@@ -83,8 +83,41 @@ function sdkDelegToLocal(sdk: SdkDelegation, id: string, parentDelegation?: stri
 }
 
 /**
+ * Compute the counterfactual HybridDeleGator address for the user role.
+ * The delegator in ERC-7710 must be a smart contract so the DelegationManager
+ * can call execute() on it. For all other roles we return the raw EOA — they
+ * only sign intermediate sub-delegations verified via ECDSA, not called for execution.
+ */
+async function getUserSmartAccountAddr(): Promise<`0x${string}`> {
+  const { getSmartAccountsEnvironment, contracts } = await import('@metamask/smart-accounts-kit');
+  const { privateKeyToAccount } = await import('viem/accounts');
+  const { getContractAddress, pad } = await import('viem');
+
+  const eoaAddr = privateKeyToAccount(getPrivateKey('user')).address;
+  const env = getSmartAccountsEnvironment(CHAIN_ID);
+
+  const initcode = contracts.HybridDeleGator.encode.initializeHybridDeleGator({
+    eoaOwner: eoaAddr,
+    p256Owners: [],
+  });
+  const proxyCreationCode = contracts.encodeProxyCreationCode({
+    implementationAddress: env.implementations.HybridDeleGatorImpl as `0x${string}`,
+    initcode,
+  });
+  const salt = pad('0x0', { dir: 'left', size: 32 });
+  return getContractAddress({
+    bytecode: proxyCreationCode,
+    from: env.SimpleFactory as `0x${string}`,
+    opcode: 'CREATE2',
+    salt,
+  });
+}
+
+/**
  * Return the Ethereum address for an agent role.
- * Live mode: derives from private key. Demo: returns deterministic placeholder.
+ * Live mode — user: HybridDeleGator counterfactual address (needed for execution).
+ *             others: raw EOA (intermediate signers, ECDSA-verified by DelegationManager).
+ * Demo: returns deterministic placeholder.
  */
 export async function createSmartAccount(role: string): Promise<string> {
   if (IS_DEMO) {
@@ -96,6 +129,8 @@ export async function createSmartAccount(role: string): Promise<string> {
     };
     return addressMap[role] || `0x${role}...demo`;
   }
+
+  if (role === 'user') return getUserSmartAccountAddr();
 
   const { privateKeyToAccount } = await import('viem/accounts');
   const privateKey = getPrivateKey(role);
@@ -121,9 +156,10 @@ export async function requestPermissions(): Promise<Delegation> {
   const { privateKeyToAccount } = await import('viem/accounts');
 
   const env = getSmartAccountsEnvironment(CHAIN_ID);
-  const userKey = getPrivateKey('user');
   const masterKey = getPrivateKey('master');
-  const userAddr = privateKeyToAccount(userKey).address;
+  // userAddr must be the deployed HybridDeleGator — DelegationManager calls execute() on it.
+  // The EOA private key still signs the delegation (HybridDeleGator validates via isValidSignature).
+  const userAddr = await getUserSmartAccountAddr();
   const masterAddr = privateKeyToAccount(masterKey).address;
 
   const delegation = createDelegation({
@@ -172,6 +208,7 @@ export async function createDelegationWithCaveats(params: {
   const { createDelegation, getSmartAccountsEnvironment, CaveatType } = await import(
     '@metamask/smart-accounts-kit'
   );
+  const { createCaveatBuilder } = await import('@metamask/smart-accounts-kit/utils');
   const { hashDelegation } = await import('@metamask/delegation-core');
   const { privateKeyToAccount } = await import('viem/accounts');
 
@@ -183,23 +220,23 @@ export async function createDelegationWithCaveats(params: {
 
   const parentSdk = params.parentDelegation ? _delegationStore.get(params.parentDelegation) : undefined;
 
-  // Map local Caveat[] to SDK caveat config objects
-  const sdkCaveats = params.caveats.map((c): Record<string, unknown> => {
+  // Build caveats using createCaveatBuilder for type-safe, enforcer-resolved caveat encoding
+  const caveatBuilder = createCaveatBuilder(env);
+  for (const c of params.caveats) {
     if (c.type === 'Erc20TransferAmount') {
-      return {
-        type: CaveatType.Erc20TransferAmount,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      caveatBuilder.addCaveat(CaveatType.Erc20TransferAmount as any, {
         tokenAddress: USDC_ADDRESS,
         maxAmount: BigInt(c.value as string),
-      };
+      });
+    } else if (c.type === 'LimitedCalls') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      caveatBuilder.addCaveat(CaveatType.LimitedCalls as any, { limit: Number(c.value) });
+    } else if (c.type === 'Redeemer') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      caveatBuilder.addCaveat(CaveatType.Redeemer as any, { redeemers: [c.value as `0x${string}`] });
     }
-    if (c.type === 'LimitedCalls') {
-      return { type: CaveatType.LimitedCalls, limit: Number(c.value) };
-    }
-    if (c.type === 'Redeemer') {
-      return { type: CaveatType.Redeemer, redeemers: [c.value as `0x${string}`] };
-    }
-    return { type: c.type as never };
-  });
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createDelegationAny = createDelegation as (opts: any) => SdkDelegation;
@@ -209,7 +246,7 @@ export async function createDelegationWithCaveats(params: {
         from: delegatorAddr,
         to: delegateAddr,
         parentDelegation: parentSdk,
-        caveats: sdkCaveats,
+        caveats: caveatBuilder,
       })
     : createDelegationAny({
         environment: env,
@@ -220,7 +257,7 @@ export async function createDelegationWithCaveats(params: {
           tokenAddress: USDC_ADDRESS,
           maxAmount: BigInt(toUsdcRaw(WORKER_BUDGET_USDC)),
         },
-        caveats: sdkCaveats,
+        caveats: caveatBuilder,
       });
 
   const signed = await liveSign(delegation, signerRole);
@@ -275,6 +312,65 @@ export async function settleDelegationChain(delegationId: string): Promise<strin
 
   const result = await sendTransaction({ encodedDelegations: encoded, executionCalldata });
   return result.taskId;
+}
+
+/**
+ * Create an EIP-7702 authorization for upgrading an EOA to a smart account.
+ * Uses toMetaMaskSmartAccount(Implementation.Stateless7702) — no contract deployment,
+ * the EOA's code pointer is set to EIP7702StatelessDeleGatorImpl via a 7702 auth tuple.
+ * The authorization is included in the 1Shot relay call so execution happens on-chain.
+ *
+ * Demo: returns a deterministic mock authorization.
+ * Live: signs a real authorization tuple with the role's private key.
+ */
+export async function createEip7702Authorization(role: string): Promise<Eip7702Authorization> {
+  if (IS_DEMO) {
+    return {
+      contractAddress: '0x0000000000000000000000000000000000000001' as `0x${string}`,
+      chainId: CHAIN_ID,
+      nonce: 0,
+      r: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+      s: '0x0000000000000000000000000000000000000000000000000000000000000001' as `0x${string}`,
+      yParity: 0,
+    };
+  }
+
+  const { toMetaMaskSmartAccount, Implementation, getSmartAccountsEnvironment } = await import(
+    '@metamask/smart-accounts-kit'
+  );
+  const { privateKeyToAccount, signAuthorization } = await import('viem/accounts');
+  const { createPublicClient, http } = await import('viem');
+
+  const privateKey = getPrivateKey(role);
+  const account = privateKeyToAccount(privateKey);
+  const env = getSmartAccountsEnvironment(CHAIN_ID);
+  const contractAddress = env.implementations.EIP7702StatelessDeleGatorImpl as `0x${string}`;
+
+  // toMetaMaskSmartAccount with Stateless7702 — no deployment, EOA IS the smart account
+  const client = createPublicClient({ transport: http() });
+  await toMetaMaskSmartAccount({
+    client,
+    implementation: Implementation.Stateless7702,
+    address: account.address,
+    signer: { account },
+  });
+
+  // Sign the EIP-7702 authorization tuple for inclusion in the 1Shot relay transaction
+  const signed = await signAuthorization({
+    privateKey,
+    contractAddress,
+    chainId: CHAIN_ID,
+    nonce: 0,
+  });
+
+  return {
+    contractAddress,
+    chainId: signed.chainId,
+    nonce: signed.nonce,
+    r: signed.r,
+    s: signed.s,
+    yParity: signed.yParity ?? 0,
+  };
 }
 
 // Re-export for convenience

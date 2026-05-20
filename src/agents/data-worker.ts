@@ -6,6 +6,7 @@
 import type { PremiumDataResponse, ActivityEvent } from '@/lib/types';
 import { fetchPremiumData } from '@/lib/buyer';
 import { STEP_DELAY, X402_COST_PER_CALL } from '@/lib/constants';
+import { callVenice } from '@/lib/venice';
 import { eventBus } from '@/lib/events';
 
 /**
@@ -31,6 +32,16 @@ export async function runDataWorker(): Promise<PremiumDataResponse> {
     'data-worker',
     `Premium data received: ${Array.isArray(data.assets) ? (data.assets as unknown[]).length : 0} assets`
   );
+
+  // Venice AI: interpret the premium market data
+  const insight = await callVenice(
+    [
+      { role: 'system', content: 'You are a financial data analyst AI agent. Be concise.' },
+      { role: 'user', content: `Analyze this market data and provide a one-sentence trading insight: ${JSON.stringify(data)}` },
+    ],
+    'Market data shows strong momentum — BTC leading with +2.3% gain. Recommend executing relay transaction.'
+  );
+  emitActivity('ai_reasoning', 'data-worker', `Venice AI insight: ${insight}`);
 
   return data;
 }

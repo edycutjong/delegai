@@ -5,8 +5,17 @@
 // ── Chain Config ────────────────────────────────────────
 
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || '11155111');
-export const CHAIN_NAME = 'Ethereum Sepolia';
-export const BLOCK_EXPLORER = 'https://sepolia.etherscan.io';
+
+const CHAIN_METADATA: Record<number, { name: string; explorer: string }> = {
+  1: { name: 'Ethereum Mainnet', explorer: 'https://etherscan.io' },
+  11155111: { name: 'Ethereum Sepolia', explorer: 'https://sepolia.etherscan.io' },
+  8453: { name: 'Base Mainnet', explorer: 'https://basescan.org' },
+  84532: { name: 'Base Sepolia', explorer: 'https://sepolia.basescan.org' },
+};
+
+const _chain = CHAIN_METADATA[CHAIN_ID] ?? { name: `Chain ${CHAIN_ID}`, explorer: `https://etherscan.io` };
+export const CHAIN_NAME = _chain.name;
+export const BLOCK_EXPLORER = _chain.explorer;
 
 // ── Demo Mode ───────────────────────────────────────────
 

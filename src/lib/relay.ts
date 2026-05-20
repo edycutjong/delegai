@@ -91,20 +91,26 @@ export async function sendTransaction(params?: {
 
   const token = await getToken();
 
+  // Include webhook callback URL when configured so 1Shot can push status updates
+  const body: Record<string, unknown> = {
+    params: {
+      _permissionContexts: params?.encodedDelegations ? [params.encodedDelegations] : [],
+      _modes: ['0x0000000000000000000000000000000000000000000000000000000000000000'],
+      // ERC-7579 single-call: encodePacked(address target, uint256 value, bytes data) — min 52 bytes
+      _executionCallDatas: [params?.executionCalldata ?? `0x${'00'.repeat(52)}`],
+    },
+  };
+  if (process.env.ONESHOT_WEBHOOK_URL) {
+    body.callbackUrl = process.env.ONESHOT_WEBHOOK_URL;
+  }
+
   const res = await fetch(`${ONESHOT_API_BASE}/methods/${methodId}/execute`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      params: {
-        _permissionContexts: params?.encodedDelegations ? [params.encodedDelegations] : [],
-        _modes: ['0x0000000000000000000000000000000000000000000000000000000000000000'],
-        // ERC-7579 single-call: encodePacked(address target, uint256 value, bytes data) — min 52 bytes
-        _executionCallDatas: [params?.executionCalldata ?? `0x${'00'.repeat(52)}`],
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   const tx = await res.json() as { id?: string; status?: string; message?: string };

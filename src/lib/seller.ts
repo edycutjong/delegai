@@ -3,7 +3,9 @@
  * Payment verification for protected premium data endpoints
  * ───────────────────────────────────────────────────────── */
 
-import { IS_DEMO, CHAIN_ID, X402_FACILITATOR, X402_COST_PER_CALL } from './constants';
+import { IS_DEMO, CHAIN_ID, USDC_ADDRESS, X402_FACILITATOR, X402_COST_PER_CALL } from './constants';
+import { ExactEvmScheme } from '@x402/evm/exact/server';
+import type { PaymentRequirements, Price, Network, AssetAmount } from '@x402/core/types';
 
 // EIP-712 types matching the DelegationManager signing schema
 const DELEGATION_TYPES = {
@@ -88,6 +90,28 @@ export async function verifyPayment(paymentSignature: string | null): Promise<bo
   } catch (err) {
     console.error('[verifyPayment] verification error:', err);
     return false;
+  }
+}
+
+/**
+ * x402 ERC-7710 payment scheme for delegation-chain micropayments.
+ * Extends ExactEvmScheme to inject ERC-7710 delegation metadata into payment requirements,
+ * allowing buyers to pay with encoded delegation chains instead of direct token transfers.
+ */
+export class Erc7710ExactEvmScheme extends ExactEvmScheme {
+  override async parsePrice(price: Price, _network: Network): Promise<AssetAmount> {
+    if (typeof price === 'object' && 'amount' in price) return price as AssetAmount;
+    const raw = typeof price === 'string' ? price.replace(/[^0-9.]/g, '') : String(price);
+    return { amount: String(Math.round(parseFloat(raw) * 1e6)), asset: USDC_ADDRESS };
+  }
+
+  override async enhancePaymentRequirements(
+    requirements: PaymentRequirements,
+    supportedKind: { x402Version: number; scheme: string; network: Network; extra?: Record<string, unknown> },
+    extensionKeys: string[]
+  ): Promise<PaymentRequirements> {
+    const base = await super.enhancePaymentRequirements(requirements, supportedKind, extensionKeys);
+    return { ...base, extra: { ...(base.extra ?? {}), erc7710: true, chainId: CHAIN_ID } };
   }
 }
 

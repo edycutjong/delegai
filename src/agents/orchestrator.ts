@@ -8,6 +8,7 @@ import {
   createDelegationWithCaveats,
   requestPermissions,
   createSmartAccount,
+  createEip7702Authorization,
 } from '@/lib/delegator';
 import {
   IS_DEMO,
@@ -17,6 +18,7 @@ import {
   STEP_DELAY,
   toUsdcRaw,
 } from '@/lib/constants';
+import { callVenice } from '@/lib/venice';
 import { eventBus } from '@/lib/events';
 
 /**
@@ -49,6 +51,17 @@ export async function runOrchestration(): Promise<DelegationChain> {
 
   const rootDelegation = await requestPermissions();
   emitActivity('delegation_signed', 'user', 'Delegation signed via MetaMask Advanced Permissions');
+  await delay(STEP_DELAY);
+
+  // Venice AI: reason about budget allocation before creating sub-delegations
+  const budgetReasoning = await callVenice(
+    [
+      { role: 'system', content: 'You are a master orchestration agent managing a delegation budget for AI workers. Be concise.' },
+      { role: 'user', content: `Allocate a 50 USDC budget: data-worker needs market data (10 USDC, 2 calls max), exec-worker handles gasless relay (10 USDC, 2 calls max). Confirm allocation in one sentence.` },
+    ],
+    'Allocating 10 USDC to Data Worker for market analysis and 10 USDC to Exec Worker for gasless relay — caveat-enforced limits prevent overspend.'
+  );
+  emitActivity('ai_reasoning', 'master', `Venice AI: ${budgetReasoning}`);
   await delay(STEP_DELAY);
 
   // Step 2: Create sub-delegation for Data Worker
@@ -85,6 +98,15 @@ export async function runOrchestration(): Promise<DelegationChain> {
     'sub_delegation_created',
     'master',
     `Sub-delegation → Exec Worker: ${WORKER_BUDGET_USDC} USDC, ${WORKER_MAX_CALLS} calls`
+  );
+  await delay(STEP_DELAY);
+
+  // EIP-7702: upgrade Exec Worker EOA → smart account via toMetaMaskSmartAccount(Stateless7702)
+  const auth = await createEip7702Authorization('exec-worker');
+  emitActivity(
+    'delegation_created',
+    'master',
+    `EIP-7702 auth signed: Exec Worker EOA → StatelessDeleGator (${auth.contractAddress.slice(0, 10)}...)`
   );
   await delay(STEP_DELAY);
 

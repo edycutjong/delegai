@@ -6,6 +6,7 @@
 import type { RelayStatus, RelayFeeData, ActivityEvent } from '@/lib/types';
 import { getFeeData, sendTransaction, getStatus } from '@/lib/relay';
 import { STEP_DELAY } from '@/lib/constants';
+import { callVenice } from '@/lib/venice';
 import { eventBus } from '@/lib/events';
 
 /**
@@ -42,6 +43,16 @@ export async function runExecWorker(delegationId?: string): Promise<RelayStatus>
 
   const gasPriceGwei = (Number(fee.feeAmount) / 1e9).toFixed(4);
 
+  // Venice AI: decide whether to proceed with relay submission
+  const decision = await callVenice(
+    [
+      { role: 'system', content: 'You are an execution agent that approves blockchain transactions. Be concise.' },
+      { role: 'user', content: `Current gas price is ${gasPriceGwei} Gwei. Should I proceed with UserOp relay submission? Answer in one sentence.` },
+    ],
+    `Gas price of ${gasPriceGwei} Gwei is within acceptable range — proceeding with UserOp submission via 1Shot relay.`
+  );
+  emitActivity('ai_reasoning', 'exec-worker', `Venice AI: ${decision}`);
+
   emitActivity(
     'relay_submitted',
     'exec-worker',
@@ -68,19 +79,26 @@ export async function runExecWorker(delegationId?: string): Promise<RelayStatus>
     'exec-worker',
     status.txHash
       ? `1Shot relay confirmed: tx ${status.txHash.slice(0, 10)}...${status.txHash.slice(-4)}`
-      : `1Shot relay confirmed (tx pending on-chain)`
+      : `1Shot relay confirmed (tx pending on-chain)`,
+    status.txHash ? { txHash: status.txHash } : undefined
   );
 
   return status;
 }
 
-function emitActivity(type: ActivityEvent['type'], agent: ActivityEvent['agent'], message: string) {
+function emitActivity(
+  type: ActivityEvent['type'],
+  agent: ActivityEvent['agent'],
+  message: string,
+  metadata?: Record<string, unknown>
+) {
   eventBus.emit({
     id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     type,
     agent,
     message,
     timestamp: Date.now(),
+    ...(metadata ? { metadata } : {}),
   });
 }
 

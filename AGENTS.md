@@ -10,7 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Autonomous Agent Delegation Network. AI coordinator agent that autonomously hires, scopes, and pays specialist AI agents via MetaMask redelegation chains and x402 micropayments — creating the first trustless M2M delegation economy.
 
 ## Hackathon
-**MetaMask Smart Accounts Kit x 1Shot API Dev Cook Off** (HackQuest) — Targeting Best A2A Coordination ($1,500) + Best Agent ($1,500) + Best x402/ERC-7710 ($1,500) = triple-track stacking.
+**MetaMask Smart Accounts Kit x 1Shot API x Venice AI Dev Cook Off** (HackQuest) — Targeting Best A2A Coordination ($1,500) + Best Agent ($1,500) + Best x402/ERC-7710 ($1,500) + Best Venice AI ($1,500) = quad-track stacking.
 
 ## Structure
 - `src/app/` — Next.js 16 App Router pages (landing, dashboard, API routes)
@@ -26,13 +26,13 @@ Autonomous Agent Delegation Network. AI coordinator agent that autonomously hire
 |---|---|
 | **Dashboard** | Next.js 16 (App Router), React 19 |
 | **Styling** | Tailwind CSS v4 |
-| **Agent Runtime** | Express 5.x (embedded in Next.js API routes) |
+| **Agent Runtime** | Next.js API Routes |
 | **Smart Accounts** | @metamask/smart-accounts-kit 1.5.x |
-| **x402** | Manual ERC-7710 delegation encoding (buyer + seller) |
+| **x402** | @x402/core + @x402/evm (buyer + seller) |
 | **Agent Intelligence** | Venice AI API — private LLM inference (llama-3.3-70b) |
 | **Relay** | 1Shot Public Relayer (REST API, OAuth2) |
 | **Chain** | Ethereum Sepolia (ChainId: 11155111) |
-| **Testing** | Jest + Supertest |
+| **Testing** | Jest |
 | **Deploy** | Vercel |
 
 ## Key Rules

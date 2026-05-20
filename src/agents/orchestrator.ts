@@ -29,6 +29,9 @@ import { eventBus } from '@/lib/events';
  */
 export async function runOrchestration(): Promise<DelegationChain> {
   // Resolve agent addresses (real in live mode, demo constants in demo mode)
+  const userAddr = IS_DEMO
+    ? DEMO_ADDRESSES.user
+    : await createSmartAccount('user');
   const masterAddr = IS_DEMO
     ? DEMO_ADDRESSES.master
     : await createSmartAccount('master');
@@ -44,6 +47,23 @@ export async function runOrchestration(): Promise<DelegationChain> {
   const execDelegateAddr = (!IS_DEMO && process.env.ONESHOT_WALLET_ADDRESS)
     ? process.env.ONESHOT_WALLET_ADDRESS
     : execWorkerAddr;
+
+  // Broadcast real addresses to the dashboard so agent cards show on-chain addresses
+  if (!IS_DEMO) {
+    eventBus.emit({
+      id: `evt-${Date.now()}-addrs`,
+      type: 'addresses_resolved',
+      agent: 'master',
+      message: 'Agent addresses resolved',
+      timestamp: Date.now(),
+      metadata: {
+        user: userAddr,
+        master: masterAddr,
+        'data-worker': dataWorkerAddr,
+        'exec-worker': execWorkerAddr,
+      },
+    });
+  }
 
   // Step 1: Request root permission
   emitActivity('delegation_created', 'user', 'Root delegation created: 50 USDC, 5 calls max');

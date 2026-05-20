@@ -15,6 +15,7 @@ jest.mock('../lib/events', () => ({
 jest.mock('../lib/constants', () => ({
   get IS_DEMO() { return _isDemo; },
   DEMO_ADDRESSES: {
+    user: '0xAl1c3000000000000000000000000000000dEaD1',
     master: '0xMa5t3R00000000000000000000000000000dEaD2',
     dataWorker: '0xDa7a000000000000000000000000000000dEaD3',
     execWorker: '0x3x3c000000000000000000000000000000dEaD4',
@@ -53,6 +54,7 @@ describe('Orchestrator Worker', () => {
       subDelegations: [{ id: 'sub-data-1' }, { id: 'sub-exec-1' }],
     });
 
+    expect(createSmartAccount).toHaveBeenCalledWith('user');
     expect(createSmartAccount).toHaveBeenCalledWith('master');
     expect(createSmartAccount).toHaveBeenCalledWith('data-worker');
     expect(createSmartAccount).toHaveBeenCalledWith('exec-worker');
@@ -60,7 +62,17 @@ describe('Orchestrator Worker', () => {
     expect(createDelegationWithCaveats).toHaveBeenCalledTimes(2);
     expect(callVenice).toHaveBeenCalledTimes(1);
     expect(createEip7702Authorization).toHaveBeenCalledWith('exec-worker');
-    expect(eventBus.emit).toHaveBeenCalledTimes(6);
+    expect(eventBus.emit).toHaveBeenCalledTimes(7);
+    expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'addresses_resolved',
+      agent: 'master',
+      metadata: expect.objectContaining({
+        user: expect.any(String),
+        master: expect.any(String),
+        'data-worker': expect.any(String),
+        'exec-worker': expect.any(String),
+      }),
+    }));
     expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
       type: 'ai_reasoning',
       agent: 'master',

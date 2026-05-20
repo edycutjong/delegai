@@ -70,6 +70,7 @@ export interface Budget {
 // ── Activity Feed Types ─────────────────────────────────
 
 export type ActivityType =
+  | 'addresses_resolved'
   | 'delegation_created'
   | 'delegation_signed'
   | 'sub_delegation_created'

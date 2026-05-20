@@ -78,6 +78,17 @@ export default function DashboardPage() {
       const event: ActivityEvent = JSON.parse(e.data as string);
       if ((event.type as string) === 'connected') return;
 
+      // internal event — updates agent addresses, never shown in feed
+      if (event.type === 'addresses_resolved' && event.metadata) {
+        const addrs = event.metadata as Record<string, string>;
+        setAgents((prev) =>
+          prev.map((a) =>
+            addrs[a.role] ? { ...a, address: addrs[a.role] } : a
+          )
+        );
+        return;
+      }
+
       setActivities((prev) => [...prev, event]);
 
       // Map sub_delegation_created to alternating steps

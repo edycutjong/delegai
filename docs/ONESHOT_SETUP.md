@@ -86,6 +86,9 @@ ONESHOT_CONTRACT_METHOD_ID=your-method-uuid-here
 ONESHOT_API_KEY=your-api-key
 ONESHOT_API_SECRET=your-api-secret
 ONESHOT_CONTRACT_METHOD_ID=your-method-uuid
+# Optional — see .env.example for details:
+# ONESHOT_WALLET_ADDRESS=0x-your-1shot-wallet-address
+# ONESHOT_WEBHOOK_URL=https://your-app.vercel.app/api/relay/webhook
 ```
 
 ---

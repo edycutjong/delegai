@@ -3,6 +3,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import type { Agent, DelegationChain, DemoStep } from '@/lib/types';
 import { AGENT_COLORS } from '@/lib/constants';
+import { AddressBadge } from './AddressBadge';
 
 interface DelegationTreeProps {
   agents: Agent[];
@@ -235,9 +236,13 @@ function TreeNode({
           {budget}
         </p>
         {address && (
-          <p className="text-xs text-text-muted font-mono truncate opacity-60">
-            {address.slice(0, 10)}…
-          </p>
+          <AddressBadge
+            address={address}
+            startChars={10}
+            endChars={4}
+            minimal
+            className="text-xs opacity-60"
+          />
         )}
       </div>
 

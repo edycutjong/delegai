@@ -5,6 +5,7 @@ import type { Agent } from '@/lib/types';
 import { AGENT_COLORS } from '@/lib/constants';
 import { BudgetMeter } from './BudgetMeter';
 import { CaveatBadge } from './CaveatBadge';
+import { AddressBadge } from './AddressBadge';
 
 interface AgentCardProps {
   agent: Agent;
@@ -117,8 +118,8 @@ export function AgentCard({ agent }: AgentCardProps) {
 
       <p className="text-xs text-text-muted mb-3">{ROLE_DESCRIPTIONS[agent.role]}</p>
 
-      <div className="text-xs font-mono text-text-muted mb-2 truncate">
-        {agent.address.slice(0, 10)}...{agent.address.slice(-4)}
+      <div className="mb-2">
+        <AddressBadge address={agent.address} />
       </div>
 
       {agent.budget.allocated > 0 && (

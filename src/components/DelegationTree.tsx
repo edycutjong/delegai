@@ -1,14 +1,15 @@
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ExternalLink } from 'lucide-react';
 import type { Agent, DelegationChain, DemoStep } from '@/lib/types';
-import { AGENT_COLORS } from '@/lib/constants';
+import { AGENT_COLORS, BLOCK_EXPLORER } from '@/lib/constants';
 import { AddressBadge } from './AddressBadge';
 
 interface DelegationTreeProps {
   agents: Agent[];
   chain: DelegationChain | null;
   step: DemoStep;
+  txHash?: string;
 }
 
 const STEP_ORDER: DemoStep[] = [
@@ -29,7 +30,7 @@ function stepIndex(s: DemoStep) {
   return STEP_ORDER.indexOf(s);
 }
 
-export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
+export function DelegationTree({ agents, chain, step, txHash }: DelegationTreeProps) {
   const user       = agents.find((a) => a.role === 'user');
   const master     = agents.find((a) => a.role === 'master');
   const dataWorker = agents.find((a) => a.role === 'data-worker');
@@ -149,7 +150,6 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
       {/* Settlement block */}
       {chain && step === 'complete' && (
         <div className="mt-5 relative flex items-center justify-center">
-          {/* Ring explosion layers */}
           <span className="absolute inset-0 rounded-xl border border-success/50 animate-settle-ring pointer-events-none" />
           <span className="absolute inset-0 rounded-xl border border-success/25 animate-settle-ring-2 pointer-events-none" />
 
@@ -158,9 +158,22 @@ export function DelegationTree({ agents, chain, step }: DelegationTreeProps) {
               <CheckCircle2 size={16} className="text-success" />
               <p className="text-success text-sm font-semibold">Chain Settled on Sepolia</p>
             </div>
-            <p className="text-xs text-text-muted font-mono">
+            <p className="text-xs text-text-muted font-mono mb-2">
               All delegations consumed · ERC-7710 verified
             </p>
+            {txHash ? (
+              <a
+                href={`${BLOCK_EXPLORER}/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/20 border border-success/40 text-success text-xs font-mono hover:bg-success/30 transition-colors"
+              >
+                <ExternalLink size={11} />
+                {txHash.slice(0, 10)}…{txHash.slice(-6)} · View on Etherscan
+              </a>
+            ) : (
+              <p className="text-xs text-text-muted font-mono opacity-50">Demo mode · no on-chain tx</p>
+            )}
           </div>
         </div>
       )}

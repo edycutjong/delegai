@@ -129,4 +129,25 @@ describe('Orchestrator Worker', () => {
 
     delete process.env.ONESHOT_WALLET_ADDRESS;
   });
+
+  it('uses custom OrchestrationParams when provided', async () => {
+    (createDelegationWithCaveats as jest.Mock)
+      .mockReset()
+      .mockResolvedValueOnce({ id: 'sub-data-3' })
+      .mockResolvedValueOnce({ id: 'sub-exec-3' });
+    (callVenice as jest.Mock).mockReset().mockResolvedValue('Custom params reasoning.');
+    (createEip7702Authorization as jest.Mock).mockReset().mockResolvedValue({ contractAddress: '0x01', chainId: 11155111, nonce: 0, r: '0x01', s: '0x01', yParity: 0 });
+
+    const result = await runOrchestration({ rootBudget: 25, rootMaxCalls: 3, workerBudget: 5, workerMaxCalls: 1 });
+
+    expect(result.subDelegations).toHaveLength(2);
+    // createDelegationWithCaveats should be called with the custom workerBudget value (5 USDC = 5_000_000 raw)
+    expect(createDelegationWithCaveats).toHaveBeenCalledWith(
+      expect.objectContaining({
+        caveats: expect.arrayContaining([
+          expect.objectContaining({ type: 'Erc20TransferAmount', value: '5000000' }),
+        ]),
+      })
+    );
+  });
 });

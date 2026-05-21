@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Agent, DelegationChain, ActivityEvent, DemoStep } from '@/lib/types';
 import { createMockAgents, createMockActivities } from '@/lib/mock-data';
 import { Header } from '@/components/Header';
@@ -11,8 +11,9 @@ import { ActivityFeed } from '@/components/ActivityFeed';
 import { StartDelegationButton } from '@/components/StartDelegationButton';
 import {
   ROOT_BUDGET_USDC,
+  ROOT_MAX_CALLS,
   WORKER_BUDGET_USDC,
-  X402_COST_PER_CALL,
+  WORKER_MAX_CALLS,
 } from '@/lib/constants';
 
 const IS_LIVE = process.env.NEXT_PUBLIC_DELEGAI_DEMO !== 'true';
@@ -53,7 +54,39 @@ export default function DashboardPage() {
   const [step, setStep] = useState<DemoStep>('idle');
   const [isRunning, setIsRunning] = useState(false);
   const [chain, setChain] = useState<DelegationChain | null>(null);
+  const [rootBudget, setRootBudget] = useState(ROOT_BUDGET_USDC);
+  const [settleTxHash, setSettleTxHash] = useState<string | undefined>();
+  const [params, setParams] = useState({
+    rootBudget: ROOT_BUDGET_USDC,
+    rootMaxCalls: ROOT_MAX_CALLS,
+    workerBudget: WORKER_BUDGET_USDC,
+    workerMaxCalls: WORKER_MAX_CALLS,
+  });
   const subDelegCount = useRef(0);
+
+  // Pre-load real addresses + on-chain USDC balance on mount in live mode
+  useEffect(() => {
+    if (!IS_LIVE) return;
+    fetch('/api/addresses')
+      .then((r) => r.json())
+      .then((data: Record<string, string> & { usdcBalance?: number }) => {
+        setAgents((prev) =>
+          prev.map((a) => (data[a.role] ? { ...a, address: data[a.role] } : a))
+        );
+        if (typeof data.usdcBalance === 'number') {
+          setRootBudget(data.usdcBalance);
+          setParams((p) => ({ ...p, rootBudget: data.usdcBalance as number }));
+          setAgents((prev) =>
+            prev.map((a) =>
+              a.role === 'user'
+                ? { ...a, budget: { ...a.budget, allocated: data.usdcBalance as number } }
+                : a
+            )
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const runLive = useCallback(async () => {
     if (isRunning) return;
@@ -77,7 +110,11 @@ export default function DashboardPage() {
       es.addEventListener('message', onConnect);
     });
 
-    await fetch('/api/delegate', { method: 'POST' });
+    await fetch('/api/delegate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
 
     es.onmessage = (e: MessageEvent) => {
       const event: ActivityEvent = JSON.parse(e.data as string);
@@ -105,7 +142,7 @@ export default function DashboardPage() {
         setAgents((prev) =>
           prev.map((a) =>
             a.role === workerRole
-              ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: WORKER_BUDGET_USDC, callsMax: 2 } }
+              ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls } }
               : a
           )
         );
@@ -129,11 +166,7 @@ export default function DashboardPage() {
         setAgents((prev) =>
           prev.map((a) =>
             a.role === 'data-worker'
-              ? {
-                  ...a,
-                  status: 'done' as const,
-                  budget: { ...a.budget, consumed: X402_COST_PER_CALL, callsUsed: 1 },
-                }
+              ? { ...a, status: 'done' as const, budget: { ...a.budget, callsUsed: 1 } }
               : a
           )
         );
@@ -144,14 +177,13 @@ export default function DashboardPage() {
           )
         );
       } else if (event.type === 'relay_confirmed') {
+        if (typeof event.metadata?.txHash === 'string') {
+          setSettleTxHash(event.metadata.txHash);
+        }
         setAgents((prev) =>
           prev.map((a) =>
             a.role === 'exec-worker'
-              ? {
-                  ...a,
-                  status: 'done' as const,
-                  budget: { ...a.budget, consumed: 0.03, callsUsed: 1 },
-                }
+              ? { ...a, status: 'done' as const, budget: { ...a.budget, callsUsed: 1 } }
               : a
           )
         );
@@ -216,15 +248,7 @@ export default function DashboardPage() {
     setAgents((prev) =>
       prev.map((a) =>
         a.role === 'data-worker'
-          ? {
-              ...a,
-              status: 'idle' as const,
-              budget: {
-                ...a.budget,
-                allocated: WORKER_BUDGET_USDC,
-                callsMax: 2,
-              },
-            }
+          ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls } }
           : a
       )
     );
@@ -235,15 +259,7 @@ export default function DashboardPage() {
     setAgents((prev) =>
       prev.map((a) =>
         a.role === 'exec-worker'
-          ? {
-              ...a,
-              status: 'idle' as const,
-              budget: {
-                ...a.budget,
-                allocated: WORKER_BUDGET_USDC,
-                callsMax: 2,
-              },
-            }
+          ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls } }
           : a
       )
     );
@@ -271,15 +287,7 @@ export default function DashboardPage() {
     setAgents((prev) =>
       prev.map((a) =>
         a.role === 'data-worker'
-          ? {
-              ...a,
-              status: 'done' as const,
-              budget: {
-                ...a.budget,
-                consumed: X402_COST_PER_CALL,
-                callsUsed: 1,
-              },
-            }
+          ? { ...a, status: 'done' as const, budget: { ...a.budget, callsUsed: 1 } }
           : a
       )
     );
@@ -302,15 +310,7 @@ export default function DashboardPage() {
     setAgents((prev) =>
       prev.map((a) =>
         a.role === 'exec-worker'
-          ? {
-              ...a,
-              status: 'done' as const,
-              budget: {
-                ...a.budget,
-                consumed: 0.03,
-                callsUsed: 1,
-              },
-            }
+          ? { ...a, status: 'done' as const, budget: { ...a.budget, callsUsed: 1 } }
           : a
       )
     );
@@ -372,11 +372,49 @@ export default function DashboardPage() {
               </span>
             )}
           </div>
-          <StartDelegationButton
-            onClick={IS_LIVE ? runLive : runDemo}
-            isRunning={isRunning}
-            isComplete={step === 'complete'}
-          />
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Parameter inputs — only editable before delegation starts */}
+            {step === 'idle' && (
+              <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
+                <span className="text-text-muted/60">Root:</span>
+                <input
+                  type="number" min={1} max={rootBudget} step={1}
+                  value={params.rootBudget}
+                  onChange={(e) => setParams((p) => ({ ...p, rootBudget: Math.min(Number(e.target.value), rootBudget) }))}
+                  className="w-14 bg-bg-elevated border border-border rounded px-1.5 py-0.5 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-primary"
+                />
+                <span className="text-text-muted/60">USDC</span>
+                <input
+                  type="number" min={1} max={20} step={1}
+                  value={params.rootMaxCalls}
+                  onChange={(e) => setParams((p) => ({ ...p, rootMaxCalls: Number(e.target.value) }))}
+                  className="w-10 bg-bg-elevated border border-border rounded px-1.5 py-0.5 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-primary"
+                />
+                <span className="text-text-muted/60">calls</span>
+                <span className="text-border mx-1">|</span>
+                <span className="text-text-muted/60">Worker:</span>
+                <input
+                  type="number" min={1} max={params.rootBudget} step={1}
+                  value={params.workerBudget}
+                  onChange={(e) => setParams((p) => ({ ...p, workerBudget: Math.min(Number(e.target.value), p.rootBudget) }))}
+                  className="w-14 bg-bg-elevated border border-border rounded px-1.5 py-0.5 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-primary"
+                />
+                <span className="text-text-muted/60">USDC</span>
+                <input
+                  type="number" min={1} max={10} step={1}
+                  value={params.workerMaxCalls}
+                  onChange={(e) => setParams((p) => ({ ...p, workerMaxCalls: Number(e.target.value) }))}
+                  className="w-10 bg-bg-elevated border border-border rounded px-1.5 py-0.5 text-xs font-mono text-text-primary text-center focus:outline-none focus:border-primary"
+                />
+                <span className="text-text-muted/60">calls</span>
+              </div>
+            )}
+            <StartDelegationButton
+              onClick={IS_LIVE ? runLive : runDemo}
+              isRunning={isRunning}
+              isComplete={step === 'complete'}
+            />
+          </div>
         </div>
 
         {/* Main Grid */}
@@ -408,7 +446,7 @@ export default function DashboardPage() {
                 Total Budget Consumption
               </h3>
               <BudgetMeter
-                allocated={ROOT_BUDGET_USDC}
+                allocated={rootBudget}
                 consumed={totalConsumed}
                 label="Root Delegation"
               />
@@ -423,7 +461,7 @@ export default function DashboardPage() {
             <h2 className="text-sm font-mono text-text-muted uppercase tracking-wider mb-2">
               Delegation Chain
             </h2>
-            <DelegationTree agents={agents} chain={chain} step={step} />
+            <DelegationTree agents={agents} chain={chain} step={step} txHash={settleTxHash} />
           </div>
 
           {/* Right Column: Activity Feed */}

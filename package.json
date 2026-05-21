@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "ci": "npm run lint && npm run typecheck && npm run test:coverage"
+    "ci": "npm run lint && npm run typecheck && npm run test:coverage",
+    "addresses": "dotenv -e .env.local -- tsx scripts/show-addresses.ts"
   },
   "dependencies": {
     "@metamask/smart-accounts-kit": "^1.5.0",

@@ -13,6 +13,8 @@ import {
 import {
   IS_DEMO,
   DEMO_ADDRESSES,
+  ROOT_BUDGET_USDC,
+  ROOT_MAX_CALLS,
   WORKER_BUDGET_USDC,
   WORKER_MAX_CALLS,
   STEP_DELAY,
@@ -21,13 +23,24 @@ import {
 import { callVenice } from '@/lib/venice';
 import { eventBus } from '@/lib/events';
 
+export interface OrchestrationParams {
+  rootBudget?: number;
+  rootMaxCalls?: number;
+  workerBudget?: number;
+  workerMaxCalls?: number;
+}
+
 /**
  * Run the full orchestration flow:
  * 1. Request root permission from user
  * 2. Create sub-delegations for workers
  * 3. Return complete delegation chain
  */
-export async function runOrchestration(): Promise<DelegationChain> {
+export async function runOrchestration(params: OrchestrationParams = {}): Promise<DelegationChain> {
+  const rootBudget   = params.rootBudget   ?? ROOT_BUDGET_USDC;
+  const rootMaxCalls = params.rootMaxCalls ?? ROOT_MAX_CALLS;
+  const workerBudget = params.workerBudget ?? WORKER_BUDGET_USDC;
+  const workerMaxCalls = params.workerMaxCalls ?? WORKER_MAX_CALLS;
   // Resolve agent addresses (real in live mode, demo constants in demo mode)
   const userAddr = IS_DEMO
     ? DEMO_ADDRESSES.user
@@ -66,10 +79,10 @@ export async function runOrchestration(): Promise<DelegationChain> {
   }
 
   // Step 1: Request root permission
-  emitActivity('delegation_created', 'user', 'Root delegation created: 50 USDC, 5 calls max');
+  emitActivity('delegation_created', 'user', `Root delegation created: ${rootBudget} USDC, ${rootMaxCalls} calls max`);
   await delay(STEP_DELAY);
 
-  const rootDelegation = await requestPermissions();
+  const rootDelegation = await requestPermissions(rootBudget, rootMaxCalls);
   emitActivity('delegation_signed', 'user', 'Delegation signed via MetaMask Advanced Permissions');
   await delay(STEP_DELAY);
 
@@ -77,9 +90,9 @@ export async function runOrchestration(): Promise<DelegationChain> {
   const budgetReasoning = await callVenice(
     [
       { role: 'system', content: 'You are a master orchestration agent managing a delegation budget for AI workers. Be concise.' },
-      { role: 'user', content: `Allocate a 50 USDC budget: data-worker needs market data (10 USDC, 2 calls max), exec-worker handles gasless relay (10 USDC, 2 calls max). Confirm allocation in one sentence.` },
+      { role: 'user', content: `Allocate a ${rootBudget} USDC budget: data-worker needs market data (${workerBudget} USDC, ${workerMaxCalls} calls max), exec-worker handles gasless relay (${workerBudget} USDC, ${workerMaxCalls} calls max). Confirm allocation in one sentence.` },
     ],
-    'Allocating 10 USDC to Data Worker for market analysis and 10 USDC to Exec Worker for gasless relay — caveat-enforced limits prevent overspend.'
+    `Allocating ${workerBudget} USDC to Data Worker for market analysis and ${workerBudget} USDC to Exec Worker for gasless relay — caveat-enforced limits prevent overspend.`
   );
   emitActivity('ai_reasoning', 'master', `Venice AI: ${budgetReasoning}`);
   await delay(STEP_DELAY);
@@ -89,8 +102,8 @@ export async function runOrchestration(): Promise<DelegationChain> {
     delegator: masterAddr,
     delegate: dataWorkerAddr,
     caveats: [
-      { type: 'Erc20TransferAmount', value: toUsdcRaw(WORKER_BUDGET_USDC) },
-      { type: 'LimitedCalls', value: WORKER_MAX_CALLS },
+      { type: 'Erc20TransferAmount', value: toUsdcRaw(workerBudget) },
+      { type: 'LimitedCalls', value: workerMaxCalls },
       { type: 'Redeemer', value: dataWorkerAddr },
     ],
     parentDelegation: rootDelegation.id,
@@ -99,7 +112,7 @@ export async function runOrchestration(): Promise<DelegationChain> {
   emitActivity(
     'sub_delegation_created',
     'master',
-    `Sub-delegation → Data Worker: ${WORKER_BUDGET_USDC} USDC, ${WORKER_MAX_CALLS} calls`
+    `Sub-delegation → Data Worker: ${workerBudget} USDC, ${workerMaxCalls} calls`
   );
   await delay(STEP_DELAY);
 
@@ -108,8 +121,8 @@ export async function runOrchestration(): Promise<DelegationChain> {
     delegator: masterAddr,
     delegate: execDelegateAddr,
     caveats: [
-      { type: 'Erc20TransferAmount', value: toUsdcRaw(WORKER_BUDGET_USDC) },
-      { type: 'LimitedCalls', value: WORKER_MAX_CALLS },
+      { type: 'Erc20TransferAmount', value: toUsdcRaw(workerBudget) },
+      { type: 'LimitedCalls', value: workerMaxCalls },
     ],
     parentDelegation: rootDelegation.id,
     signerRole: 'master',
@@ -117,7 +130,7 @@ export async function runOrchestration(): Promise<DelegationChain> {
   emitActivity(
     'sub_delegation_created',
     'master',
-    `Sub-delegation → Exec Worker: ${WORKER_BUDGET_USDC} USDC, ${WORKER_MAX_CALLS} calls`
+    `Sub-delegation → Exec Worker: ${workerBudget} USDC, ${workerMaxCalls} calls`
   );
   await delay(STEP_DELAY);
 

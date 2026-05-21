@@ -130,7 +130,11 @@ export function AgentCard({ agent }: AgentCardProps) {
 
       {agent.address && (
         <div className="mb-2">
-          <AddressBadge address={agent.address} minimal className="text-xs text-text-muted" />
+          {agent.role === 'user' ? (
+            <AddressBadge address={agent.address} />
+          ) : (
+            <AddressBadge address={agent.address} minimal className="text-xs text-text-muted" />
+          )}
         </div>
       )}
 

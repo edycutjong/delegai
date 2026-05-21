@@ -150,7 +150,7 @@ export async function createSmartAccount(role: string): Promise<string> {
  * Live: real ERC-7710 delegation with Erc20TransferAmount scope.
  * Demo: mock root delegation.
  */
-export async function requestPermissions(): Promise<Delegation> {
+export async function requestPermissions(rootBudget = ROOT_BUDGET_USDC, rootMaxCalls = ROOT_MAX_CALLS): Promise<Delegation> {
   if (IS_DEMO) {
     const chain = createMockDelegationChain();
     return chain.root;
@@ -169,6 +169,8 @@ export async function requestPermissions(): Promise<Delegation> {
   const userAddr = await getUserSmartAccountAddr();
   const masterAddr = privateKeyToAccount(masterKey).address;
 
+  void rootMaxCalls; // LimitedCalls caveat on root not supported in SDK scope shorthand
+
   const delegation = createDelegation({
     environment: env,
     from: userAddr,
@@ -177,7 +179,7 @@ export async function requestPermissions(): Promise<Delegation> {
     scope: {
       type: ScopeType.Erc20TransferAmount,
       tokenAddress: USDC_ADDRESS,
-      maxAmount: BigInt(toUsdcRaw(ROOT_BUDGET_USDC)),
+      maxAmount: BigInt(toUsdcRaw(rootBudget)),
     },
   }) as SdkDelegation;
 

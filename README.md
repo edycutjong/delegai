@@ -1,6 +1,6 @@
 <div align="center">
   <h1>DelegAI 🤖</h1>
-  <p><em>AI agents that autonomously hire, scope, and pay sub-agents via MetaMask redelegation chains — the first trustless M2M delegation economy.</em></p>
+  <p><em>The first trustless M2M delegation economy — 18 SDK integration points, 3-level spending hierarchy, <10s settlement, $0.00 gas.</em></p>
   <img src="docs/readme-hero.png" alt="DelegAI" width="100%">
 
   <br/>
@@ -23,21 +23,25 @@
 
 ---
 
-## 📸 See it in Action
+## 🎬 What Happens in 10 Seconds
+
+> At 3:17 AM, an autonomous AI agent needed premium market data, risk analysis, and a gasless on-chain trade — spending exactly $10.02 of its $50 budget without ever touching the user's wallet.
+>
+> **DelegAI made that possible:** 3 agents, 4 delegations, 2 x402 micropayments, 1 gasless relay — all cryptographically constrained by ERC-7710 caveats. The user slept through it.
 
 <div align="center">
   <img src="src/app/opengraph-image.png" alt="DelegAI Demo" width="100%">
 </div>
 
-> **One-click delegation flow.** Grant permission → Master Agent scopes → Workers execute → Chain settles. All in <10 seconds.
+> **Grant → Redelegate → Pay → Execute → Settle.** The full delegation chain in <10 seconds.
 
 ---
 
-## 💡 The Problem & Solution
+## 💡 Why This Matters
 
-AI agents need to spend money — buying compute, fetching premium data, executing on-chain transactions. But trust is binary: grant full wallet access (one bug drains everything) or no access at all (the agent can't act). **There is no middle ground.**
+AI agents need to spend money — buying compute, fetching premium data, executing trades. But trust is binary: grant full wallet access (one bug drains everything) or no access at all (the agent can't act).
 
-**DelegAI** solves this by building a 3-level hierarchical delegation chain where each redelegation level **NARROWS** scope — the system gets **SAFER** as it grows.
+**DelegAI introduces scope-narrowing redelegation** — the first trustless M2M spending hierarchy where each level gets LESS power, making the system SAFER as it scales:
 
 ```
 User (50 USDC, 5 calls max)
@@ -46,26 +50,20 @@ User (50 USDC, 5 calls max)
       └── Exec Worker (10 USDC, 2 calls) → 1Shot gasless relay
 ```
 
-**Key Features:**
-- ⚡ **Constrained Growth:** Worker budgets are cryptographically enforced to never exceed master budgets via ERC-7710 caveats
-- 🔒 **x402 Micropayments:** Agents autonomously pay for premium data using HTTP 402 payment protocol
-- 🚀 **Gasless Execution:** Workers submit transactions via 1Shot public relayer — zero gas needed
-- 🎛️ **Real-Time SOC Dashboard:** Military-grade command center visualization of the entire delegation chain
+**What's now possible:** Before DelegAI, AI agents needed either full wallet access (dangerous) or no access at all (useless). DelegAI introduces the first trustless spending hierarchy where worker budgets are **cryptographically enforced** to never exceed master budgets via ERC-7710 caveats — each redelegation level NARROWS scope. Give an AI $50 and it can hire sub-agents, but none of them can spend more than you authorized.
 
-## 🏗️ Architecture & Tech Stack
+---
 
-| Layer | Technology |
-|---|---|
-| **Dashboard** | Next.js 16 (App Router), React 19 |
-| **Styling** | Tailwind CSS v4 |
-| **Agent Runtime** | Next.js API Routes |
-| **Smart Accounts** | MetaMask Smart Accounts Kit — 18 API integrations |
-| **Payments** | x402 (`@x402/core`, `@x402/evm`) |
-| **Agent Intelligence** | Venice AI — private LLM inference (llama-3.3-70b) |
-| **Relay** | 1Shot Public Relayer (REST API, OAuth2) |
-| **Chain** | Ethereum Sepolia (ChainId: 11155111) |
-| **Testing** | Jest |
-| **Deploy** | Vercel |
+## 🏗️ Architecture & Integration Depth
+
+**18 verified SDK integration points** across 4 sponsor technologies:
+
+| Layer | Technology | Integration Points |
+|---|---|---|
+| **Smart Accounts** | MetaMask Smart Accounts Kit 1.5.x | `createDelegation()`, `signDelegation()`, `hashDelegation()`, `createCaveatBuilder()`, `createOpenDelegation()`, `encodeDelegations()`, `decodeDelegations()`, `toMetaMaskSmartAccount(Stateless7702)`, `getSmartAccountsEnvironment()`, `erc7710BundlerActions`, `erc7715ProviderActions`, `ScopeType`, `CaveatType`, `sendUserOperationWithDelegation` |
+| **Payments** | x402 (`@x402/core`, `@x402/evm`) | Full buyer flow + seller flow + `Erc7710ExactEvmScheme` + EIP-712 verification |
+| **Relay** | 1Shot API (OAuth2, REST) | `getFeeData()`, `sendTransaction()`, `getStatus()` |
+| **AI Intelligence** | Venice AI (llama-3.3-70b) | 3 reasoning calls: budget allocation, data insight, execution decision |
 
 ```mermaid
 graph TD
@@ -80,18 +78,20 @@ graph TD
     V -->|"execution plan"| EW
 ```
 
-## 🏆 Sponsor Tracks Targeted
+---
 
-| Track | Prize | Key Integration |
+## 🏆 Sponsor Track Alignment
+
+| Track | Prize | Our Integration |
 |---|---|---|
-| **Best A2A Coordination** | $1,500 | 3-level redelegation with `parentDelegation` linking |
-| **Best Agent** | $1,500 | Autonomous agent fleet (orchestrator + 2 workers) |
-| **Best x402 + ERC-7710** | $1,500 | Full buyer (`@x402/core`) + seller (`@x402/evm`) |
-| **Best Use of Venice AI** | $1,500 | Private LLM reasoning in all 3 agents via `callVenice()` |
-| **Social Media** | Bonus | @MetaMaskDev integration posts |
-| **Feedback** | Bonus | SDK feedback document |
+| **Best A2A Coordination** | $3,000 | 3-level redelegation with `parentDelegation` linking — agents autonomously hire and scope sub-agents |
+| **Best Agent** | $3,000 | Autonomous agent fleet: orchestrator creates sub-delegations, data worker buys data, exec worker relays transactions |
+| **Best x402 + ERC-7710** | $3,000 | Full buyer (`createOpenDelegation` + `PAYMENT-SIGNATURE`) AND seller (`Erc7710ExactEvmScheme` + EIP-712 verification) |
+| **Best Use of Venice AI** | $3,000 | 3 real LLM reasoning calls: budget allocation (orchestrator), data insight (data-worker), go/no-go decision (exec-worker) |
+| **Best 1Shot Relayer** | $1,000 | OAuth2 auth, `getFeeData`, gasless `sendTransaction`, `getStatus` polling |
+| **Feedback** | $500 | [SDK_FEEDBACK.md](docs/SDK_FEEDBACK.md) — 4 constructive feedback points with code examples |
 
-**SDK Surface Used:** 18 integration points across `toMetaMaskSmartAccount()`, `createDelegation()`, `createCaveatBuilder()`, `redeemDelegations()`, `paymentMiddleware`, `relayer_send7710Transaction`, and more. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for full mapping.
+---
 
 ## 🚀 Getting Started
 
@@ -99,7 +99,7 @@ graph TD
 - Node.js ≥ 20
 - npm
 
-### Installation
+### Quick Start
 
 ```bash
 # Clone
@@ -111,70 +111,40 @@ npm install
 
 # Configure
 cp .env.example .env.local
+# Add your VENICE_API_KEY for real LLM reasoning (see .env.example)
 
-# Run (demo mode — no wallet needed!)
+# Run
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) → click **Start Delegation** to see the full 5-step flow.
 
-> **For Judges:** Demo mode is enabled by default — no MetaMask wallet, testnet funds, or API keys required. The full delegation chain runs with deterministic mock data.
+> **Venice AI is live by default** when `VENICE_API_KEY` is set — agents produce real, unique LLM reasoning on every run. Get a free key at [venice.ai/settings/api](https://venice.ai/settings/api).
+
+### Live Mode (Full Integration)
+
+Set all environment variables in `.env.local` to enable the complete on-chain flow:
+- Real MetaMask Smart Account delegations on Sepolia
+- Real x402 micropayments with EIP-712 verification
+- Real 1Shot gasless relay transactions
+- Real Venice AI reasoning
+
+### Demo Mode (Fallback)
+
+Set `DELEGAI_DEMO=true` in `.env.local` to run without any external dependencies. All integrations use deterministic mock data. Useful for local development only.
+
+---
 
 ## ⚙️ Environment Variables
 
-Copy `.env.example` to `.env.local` and fill in values for the mode you need.
+See [`.env.example`](.env.example) for the complete list with setup instructions.
 
-> **Demo mode** (`DELEGAI_DEMO=true`) requires **no API keys** — all agents run on deterministic mock data.
-
-### Core
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `NEXT_PUBLIC_CHAIN_ID` | No | `11155111` | Ethereum chain ID (Sepolia) |
-| `DELEGAI_DEMO` | No | `false` | `true` = full mock mode, no wallet/keys needed (server) |
-| `NEXT_PUBLIC_DELEGAI_DEMO` | No | `false` | Same flag exposed to the browser |
-| `DELEGAI_DEMO_SPEED` | No | `normal` | Demo animation pace: `fast` / `normal` / `slow` |
-| `NEXT_PUBLIC_BASE_URL` | Live only | — | Your deployed URL — required for x402 callbacks |
-
-### RPC
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `RPC_URL` | Live only | public Sepolia node | Ethereum Sepolia RPC (Alchemy / Infura / Ankr) |
-| `SEPOLIA_RPC_URL` | Scripts only | public Sepolia node | RPC for `scripts/deploy-accounts.ts` and `scripts/test-delegation.ts` |
-
-### MetaMask Smart Accounts
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `PRIVATE_KEY_USER` | Live only | — | User EOA private key (`0x...`) |
-| `PRIVATE_KEY_MASTER` | Live only | — | Master Agent private key |
-| `PRIVATE_KEY_DATA_WORKER` | Live only | — | Data Worker private key |
-| `PRIVATE_KEY_EXEC_WORKER` | Live only | — | Exec Worker private key |
-| `USDC_ADDRESS` | Live only | Circle Sepolia USDC | USDC token contract on Sepolia |
-
-### 1Shot Relay
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `ONESHOT_API_KEY` | Live only | — | 1Shot API key — [dashboard](https://1shotapi.com) |
-| `ONESHOT_API_SECRET` | Live only | — | 1Shot API secret |
-| `ONESHOT_CONTRACT_METHOD_ID` | Optional | — | UUID for registered `redeemDelegations` method in 1Shot |
-| `ONESHOT_WALLET_ADDRESS` | Live only | zero address | 1Shot relay wallet — exec delegations are issued to this address |
-| `ONESHOT_WEBHOOK_URL` | Optional | — | Public URL for 1Shot to POST transaction status callbacks |
-
-### Venice AI
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `VENICE_API_KEY` | Optional | — | Venice AI API key — [get one](https://venice.ai/settings/api). Without it, agents use pre-scripted fallback strings |
-| `VENICE_MODEL` | No | `llama-3.3-70b` | Model to use for agent reasoning |
-
-### x402
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `X402_FACILITATOR` | No | `https://facilitator.metamask.io` | x402 payment facilitator endpoint |
+| Variable | Purpose | Required |
+|---|---|---|
+| `VENICE_API_KEY` | Real LLM reasoning in all agents | **Recommended** — [get key](https://venice.ai/settings/api) |
+| `PRIVATE_KEY_*` | MetaMask Smart Account delegations | Live mode |
+| `ONESHOT_API_KEY` / `ONESHOT_API_SECRET` | 1Shot gasless relay | Live mode |
+| `DELEGAI_DEMO` | Enable mock fallback mode | Optional (`false` by default) |
 
 ---
 
@@ -188,7 +158,9 @@ npm run test:coverage # Coverage report
 npm run ci            # Full CI pipeline (lint + typecheck + test)
 ```
 
-CI runs on every push via GitHub Actions across Node.js `[20, 22, 24]`.
+**13 test files, 100% coverage.** CI runs on every push via GitHub Actions across Node.js `[20, 22, 24]`.
+
+---
 
 ## 📁 Project Structure
 

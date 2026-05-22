@@ -12,7 +12,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "ci": "npm run lint && npm run typecheck && npm run test:coverage",
-    "addresses": "dotenv -e .env.local -- tsx scripts/show-addresses.ts"
+    "addresses": "npx tsx --env-file=.env.local scripts/show-addresses.ts",
+    "verify": "npx tsx --env-file=.env.local scripts/verify-submission.ts"
   },
   "dependencies": {
     "@metamask/smart-accounts-kit": "^1.5.0",

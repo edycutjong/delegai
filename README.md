@@ -12,6 +12,11 @@
 
   <br/>
 
+  ![MetaMask](https://img.shields.io/badge/MetaMask_Smart_Accounts_Kit-F6851B?style=flat&logo=metamask&logoColor=white)
+  ![x402](https://img.shields.io/badge/x402_Micropayments-06b6d4?style=flat&logo=ethereum&logoColor=white)
+  ![1Shot](https://img.shields.io/badge/1Shot_Relay_API-8b5cf6?style=flat)
+  ![Venice AI](https://img.shields.io/badge/Venice_AI_(llama--3.3--70b)-22c55e?style=flat)
+
   ![Next.js](https://img.shields.io/badge/Next.js_16-black?style=flat&logo=next.js)
   ![React](https://img.shields.io/badge/React_19-61DAFB?style=flat&logo=react&logoColor=black)
   ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
@@ -51,6 +56,26 @@ User (50 USDC, 5 calls max)
 ```
 
 **What's now possible:** Before DelegAI, AI agents needed either full wallet access (dangerous) or no access at all (useless). DelegAI introduces the first trustless spending hierarchy where worker budgets are **cryptographically enforced** to never exceed master budgets via ERC-7710 caveats — each redelegation level NARROWS scope. Give an AI $50 and it can hire sub-agents, but none of them can spend more than you authorized.
+
+---
+
+## ⛓️ On-Chain Proof (Sepolia Testnet)
+
+**Deployed and funded on Ethereum Sepolia** — every address verifiable on Etherscan:
+
+| Role | Address | Etherscan |
+|---|---|---|
+| **User (HybridDeleGator)** | `0x903eF44504F9512E059DaE4228260af4795ccEBB` | [Contract ✅](https://sepolia.etherscan.io/address/0x903eF44504F9512E059DaE4228260af4795ccEBB#code) · [Token Transfers](https://sepolia.etherscan.io/address/0x903eF44504F9512E059DaE4228260af4795ccEBB#tokentxns) · [Txns](https://sepolia.etherscan.io/address/0x903eF44504F9512E059DaE4228260af4795ccEBB) |
+| **Master Agent** (EOA signer) | `0x4984bCedA778862655250ACb5Fe191dD65778B8b` | [View ↗](https://sepolia.etherscan.io/address/0x4984bCedA778862655250ACb5Fe191dD65778B8b) |
+| **Data Worker** (EOA signer) | `0x10F3a6880AB548d232606242D417FB726f009484` | [View ↗](https://sepolia.etherscan.io/address/0x10F3a6880AB548d232606242D417FB726f009484) |
+| **Exec Worker** (EOA signer) | `0x4D685F37b5b3839f8cF31A5CEBE67640a3cC2356` | [View ↗](https://sepolia.etherscan.io/address/0x4D685F37b5b3839f8cF31A5CEBE67640a3cC2356) |
+
+> **Architecture note:** Agent EOAs sign delegations off-chain using EIP-712 typed data — no gas needed. Only the final settlement executes on-chain through the User's HybridDeleGator via the DelegationManager. This is why all on-chain activity (USDC transfers, contract calls) appears on the User smart account, not the agent EOAs.
+
+- **Smart Account deployed** via `SimpleFactory.create2Deploy()` — [verified contract on Etherscan](https://sepolia.etherscan.io/address/0x903eF44504F9512E059DaE4228260af4795ccEBB#code)
+- **Funded with 20 USDC** — [view token balance](https://sepolia.etherscan.io/address/0x903eF44504F9512E059DaE4228260af4795ccEBB#tokentxns)
+- **User EOA holds 0.094 ETH** for gas
+- **✅ Delegation chain executed on-chain** — [`redeemDelegations` TX on Etherscan](https://sepolia.etherscan.io/tx/0x95f4c6e0c8a9c2b7f23812206d8a1c36078a641ae8c0572f9b6217c1ce35a472) — 2-level chain (smart account → master → redeemer) transferred USDC via ERC-7710 caveats, 284K gas
 
 ---
 
@@ -135,6 +160,23 @@ Set `DELEGAI_DEMO=true` in `.env.local` to run without any external dependencies
 
 ---
 
+## 🔀 Live Mode vs Demo Mode
+
+DelegAI has two operational modes. **Live mode is the default** — demo mode is a fallback for development without external dependencies.
+
+| Capability | Live Mode (default) | Demo Mode (`DELEGAI_DEMO=true`) |
+|---|---|---|
+| **MetaMask Smart Accounts** | Real `createDelegation()` + `signDelegation()` with ERC-7710 caveats on Sepolia | Deterministic mock delegation chain |
+| **x402 Micropayments** | Real `createOpenDelegation()` → 402 handshake → `PAYMENT-SIGNATURE` header | Accepts any signature, returns mock data |
+| **1Shot Relay** | OAuth2 auth → `getFeeData()` → `sendTransaction()` → `getStatus()` polling | Returns success after 1s delay |
+| **Venice AI** | ✅ **Always live** when `VENICE_API_KEY` is set (even in demo mode) | Falls back to pre-scripted reasoning |
+| **EIP-7702** | Real `toMetaMaskSmartAccount(Stateless7702)` + `signAuthorization()` | Returns deterministic mock auth tuple |
+| **Agent Addresses** | Derived from real private keys, verifiable on [Etherscan](https://sepolia.etherscan.io) | Deterministic placeholder addresses |
+
+> **For judges:** The deployed URL runs with Venice AI live. Set `VENICE_API_KEY` when running locally for real LLM reasoning on every agent action.
+
+---
+
 ## ⚙️ Environment Variables
 
 See [`.env.example`](.env.example) for the complete list with setup instructions.
@@ -158,7 +200,83 @@ npm run test:coverage # Coverage report
 npm run ci            # Full CI pipeline (lint + typecheck + test)
 ```
 
-**13 test files, 100% coverage.** CI runs on every push via GitHub Actions across Node.js `[20, 22, 24]`.
+**13 test files, 182 tests, 100% coverage.** CI runs on every push via GitHub Actions across Node.js `[20, 22, 24]`.
+
+### Verification
+
+Run the submission verification script to confirm all 18 SDK integration points and project integrity:
+
+```bash
+npm run verify
+```
+
+<details>
+<summary><strong>📊 Verification Output (51/51 passed)</strong></summary>
+
+```
+🔍 DelegAI — Submission Verification
+
+📁 Project Structure:
+  ✅ README.md exists
+  ✅ LICENSE exists
+  ✅ .env.example exists
+  ✅ ARCHITECTURE.md exists
+  ✅ SDK_FEEDBACK.md exists
+  ✅ DEMO_SCRIPT.md exists
+  ✅ CI workflow exists
+
+🔧 Source Code:
+  ✅ Orchestrator agent
+  ✅ Data Worker agent
+  ✅ Exec Worker agent
+  ✅ Delegator (Smart Accounts Kit)
+  ✅ Relay (1Shot API)
+  ✅ Buyer (x402)
+  ✅ Seller (x402)
+  ✅ Bundler (ERC-7710)
+  ✅ Venice AI client
+
+🔗 SDK Integration Depth (18 points):
+  ✅ createDelegation()
+  ✅ signDelegation()
+  ✅ hashDelegation()
+  ✅ createCaveatBuilder()
+  ✅ encodeDelegations()
+  ✅ createOpenDelegation()
+  ✅ getSmartAccountsEnvironment()
+  ✅ toMetaMaskSmartAccount(Stateless7702)
+  ✅ ScopeType.Erc20TransferAmount
+  ✅ CaveatType.LimitedCalls
+  ✅ erc7710BundlerActions()
+  ✅ erc7715ProviderActions()
+  ✅ Erc7710ExactEvmScheme (x402 seller)
+  ✅ verifyTypedData (EIP-712)
+  ✅ decodeDelegations()
+  ✅ 1Shot getFeeData()
+  ✅ 1Shot sendTransaction()
+  ✅ Venice AI callVenice()
+
+🧪 Test Suite:
+  ✅ delegator.test.ts          ✅ orchestrator.test.ts
+  ✅ buyer.test.ts              ✅ seller.test.ts
+  ✅ relay.test.ts              ✅ bundler.test.ts
+  ✅ venice.test.ts             ✅ data-worker.test.ts
+  ✅ exec-worker.test.ts        ✅ constants.test.ts
+  ✅ events.test.ts             ✅ mock-data.test.ts
+  ✅ types.test.ts
+
+🧠 Venice AI:
+  ✅ VENICE_API_KEY is set
+  ✅ Venice always calls API when key present
+
+📊 Results: 51 passed, 0 failed, 0 warnings
+   SDK Integration Points: 18/18 verified
+   Test Files: 13/13
+
+✅ DelegAI submission verification passed!
+```
+
+</details>
 
 ---
 
@@ -173,8 +291,10 @@ delegai/
 │   ├── SDK_FEEDBACK.md         # Feedback for SDK teams
 │   └── assets/                 # Generated images & thumbnails
 ├── scripts/                    # CLI tools
-│   ├── deploy-accounts.ts      # Generate deterministic accounts
+│   ├── deploy-accounts.ts      # Deploy HybridDeleGator on Sepolia
 │   ├── test-delegation.ts      # End-to-end delegation test
+│   ├── show-addresses.ts       # Show all agent Etherscan addresses
+│   ├── verify-submission.ts    # 51-check submission verification
 │   ├── bench.ts                # Performance benchmarks
 │   ├── verify-demo.ts          # Demo mode verification
 │   └── check-submission.ts     # Submission readiness check

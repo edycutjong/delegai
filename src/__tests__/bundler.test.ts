@@ -6,10 +6,11 @@ jest.mock('@/lib/constants', () => ({
 }));
 
 const mockExtend = jest.fn((extFn: (c: unknown) => unknown) => extFn({}));
-const mockCreatePublicClient = jest.fn((_opts?: unknown) => ({ extend: mockExtend }));
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const mockCreatePublicClient = jest.fn((..._args: unknown[]) => ({ extend: mockExtend }));
 
 jest.mock('viem', () => ({
-  createPublicClient: (opts: unknown) => mockCreatePublicClient(opts),
+  createPublicClient: (...args: unknown[]) => mockCreatePublicClient(...args),
   http: jest.fn((url: string) => ({ url })),
 }));
 

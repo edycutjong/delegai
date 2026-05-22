@@ -3,7 +3,7 @@ let _isDemo = true;
 jest.mock('@x402/evm/exact/server', () => ({
   ExactEvmScheme: class MockExactEvmScheme {
     readonly scheme = 'exact';
-    async parsePrice(_price: unknown, _network: unknown) {
+    async parsePrice() {
       return { amount: '10000', asset: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' };
     }
     async enhancePaymentRequirements(requirements: unknown) {

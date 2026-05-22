@@ -64,8 +64,23 @@ jest.mock('@metamask/delegation-core', () => ({
 jest.mock('viem', () => ({
   getContractAddress: jest.fn(() => '0x0000000000000000000000000000000000000099' as `0x${string}`),
   pad: jest.fn(() => '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`),
-  createPublicClient: jest.fn(() => ({})),
+  createPublicClient: jest.fn(() => ({
+    call: jest.fn(() => Promise.resolve({})),
+    waitForTransactionReceipt: jest.fn(() => Promise.resolve({ status: 'success', gasUsed: BigInt(301000) })),
+  })),
+  createWalletClient: jest.fn(() => ({
+    sendTransaction: jest.fn(() => Promise.resolve('0xmocktxhash0000000000000000000000000000000000000000000000000000dead' as `0x${string}`)),
+  })),
   http: jest.fn(() => ({})),
+  encodeFunctionData: jest.fn(() => '0xa9059cbb0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`),
+}));
+
+jest.mock('viem/chains', () => ({
+  sepolia: { id: 11155111, name: 'Sepolia' },
+}));
+
+jest.mock('@metamask/delegation-abis', () => ({
+  DelegationManager: [{ name: 'redeemDelegations', type: 'function', inputs: [], outputs: [] }],
 }));
 
 jest.mock('@metamask/smart-accounts-kit/utils', () => ({
@@ -73,6 +88,10 @@ jest.mock('@metamask/smart-accounts-kit/utils', () => ({
     addCaveat: jest.fn().mockReturnThis(),
     build: jest.fn(() => []),
   })),
+  createExecution: jest.fn(({ target, value, callData }: { target: string; value: bigint; callData: string }) => ({
+    target, value: value ?? BigInt(0), callData: callData ?? '0x',
+  })),
+  encodeExecutionCalldata: jest.fn(() => '0xencodedExecution' as `0x${string}`),
 }));
 
 jest.mock('viem/accounts', () => ({
@@ -105,6 +124,7 @@ import {
   createDelegationWithCaveats,
   settleDelegationChain,
   createEip7702Authorization,
+  _getDelegationStore,
   toUsdcRaw,
   ROOT_BUDGET_USDC,
   ROOT_MAX_CALLS,
@@ -113,6 +133,7 @@ import {
 const FAKE_KEY = '0x' + 'ab'.repeat(32);
 
 let consoleSpy: jest.SpyInstance;
+let consoleErrSpy: jest.SpyInstance;
 
 beforeEach(() => {
   _isDemo = true;
@@ -122,10 +143,12 @@ beforeEach(() => {
   process.env.PRIVATE_KEY_EXEC_WORKER = FAKE_KEY;
   jest.clearAllMocks();
   consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  consoleErrSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
   consoleSpy.mockRestore();
+  consoleErrSpy.mockRestore();
   delete process.env.PRIVATE_KEY_USER;
   delete process.env.PRIVATE_KEY_MASTER;
   delete process.env.PRIVATE_KEY_DATA_WORKER;
@@ -315,21 +338,22 @@ describe('settleDelegationChain — demo mode', () => {
 describe('settleDelegationChain — live mode', () => {
   beforeEach(() => { _isDemo = false; });
 
-  it('returns taskId for unknown delegation id', async () => {
-    const taskId = await settleDelegationChain('unknown-id-xyz');
-    expect(typeof taskId).toBe('string');
-    expect(taskId).toBeTruthy();
+  it('returns undefined for unknown delegation id', async () => {
+    const result = await settleDelegationChain('unknown-id-xyz');
+    expect(result).toBeUndefined();
   });
 
-  it('returns taskId with encoded delegation when id is known', async () => {
+  it('returns txHash with encoded delegation when id is known', async () => {
     const d = await createDelegationWithCaveats({
       delegator: '0x0000000000000000000000000000000000000001',
       delegate: '0x0000000000000000000000000000000000000002',
       caveats: [],
     });
-    const taskId = await settleDelegationChain(d.id);
-    expect(typeof taskId).toBe('string');
-    expect(taskId).toBeTruthy();
+    const txHash = await settleDelegationChain(d.id);
+    expect(typeof txHash).toBe('string');
+    expect(txHash).toBeTruthy();
+    // Should be a tx hash from the mock wallet client
+    expect(txHash).toContain('0x');
   });
 
   it('walks the delegation chain when child authority points to cached parent', async () => {
@@ -361,9 +385,9 @@ describe('settleDelegationChain — live mode', () => {
     });
 
     // Settle the child — should walk: child → parent (ROOT_AUTHORITY stops)
-    const taskId = await settleDelegationChain(child.id);
-    expect(typeof taskId).toBe('string');
-    expect(taskId).toBeTruthy();
+    const txHash = await settleDelegationChain(child.id);
+    expect(typeof txHash).toBe('string');
+    expect(txHash).toBeTruthy();
 
     const { encodeDelegations } = await import('@metamask/delegation-core');
     // encodeDelegations should be called with an array of length 2 (child + parent)
@@ -391,42 +415,66 @@ describe('settleDelegationChain — live mode', () => {
     });
 
     // Settle — should enter the while loop, fail to find parent, break
-    const taskId = await settleDelegationChain(child.id);
-    expect(typeof taskId).toBe('string');
-    expect(taskId).toBeTruthy();
+    const txHash = await settleDelegationChain(child.id);
+    expect(typeof txHash).toBe('string');
+    expect(txHash).toBeTruthy();
   });
 
-  it('uses zero-address fallback when ONESHOT_WALLET_ADDRESS is not set', async () => {
-    delete process.env.ONESHOT_WALLET_ADDRESS;
-    const { hashDelegation } = await import('@metamask/delegation-core');
-    const hashMock = hashDelegation as jest.Mock;
-    hashMock.mockReturnValueOnce('0xfallbackTest001');
-    hashMock.mockReturnValueOnce('0xfallbackTest001');
+  it('sends tx to DelegationManager from user EOA', async () => {
+    const d = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+    });
+    const txHash = await settleDelegationChain(d.id);
+    expect(typeof txHash).toBe('string');
+  });
+
+  it('throws when simulation fails', async () => {
+    const { createPublicClient } = await import('viem');
+    (createPublicClient as jest.Mock).mockReturnValueOnce({
+      call: jest.fn(() => Promise.reject(new Error('execution reverted'))),
+      waitForTransactionReceipt: jest.fn(),
+    });
 
     const d = await createDelegationWithCaveats({
       delegator: '0x0000000000000000000000000000000000000001',
       delegate: '0x0000000000000000000000000000000000000002',
       caveats: [],
     });
-    const taskId = await settleDelegationChain(d.id);
-    expect(typeof taskId).toBe('string');
+    await expect(settleDelegationChain(d.id)).rejects.toThrow('redeemDelegations simulation failed: execution reverted');
   });
 
-  it('uses ONESHOT_WALLET_ADDRESS when env var is set', async () => {
-    process.env.ONESHOT_WALLET_ADDRESS = '0xABCDEF1234567890ABCDEF1234567890ABCDEF12';
-    const { hashDelegation } = await import('@metamask/delegation-core');
-    const hashMock = hashDelegation as jest.Mock;
-    hashMock.mockReturnValueOnce('0xwalletAddrTest001');
-    hashMock.mockReturnValueOnce('0xwalletAddrTest001');
+  it('handles non-Error simulation failures', async () => {
+    const { createPublicClient } = await import('viem');
+    (createPublicClient as jest.Mock).mockReturnValueOnce({
+      call: jest.fn(() => Promise.reject('raw string failure')),
+      waitForTransactionReceipt: jest.fn(),
+    });
 
     const d = await createDelegationWithCaveats({
       delegator: '0x0000000000000000000000000000000000000001',
       delegate: '0x0000000000000000000000000000000000000002',
       caveats: [],
     });
-    const taskId = await settleDelegationChain(d.id);
-    expect(typeof taskId).toBe('string');
-    delete process.env.ONESHOT_WALLET_ADDRESS;
+    await expect(settleDelegationChain(d.id)).rejects.toThrow('redeemDelegations simulation failed: raw string failure');
+  });
+
+  it('logs REVERTED status when receipt.status is not success', async () => {
+    const { createPublicClient } = await import('viem');
+    (createPublicClient as jest.Mock).mockReturnValueOnce({
+      call: jest.fn(() => Promise.resolve({})),
+      waitForTransactionReceipt: jest.fn(() => Promise.resolve({ status: 'reverted', gasUsed: BigInt(100000) })),
+    });
+
+    const d = await createDelegationWithCaveats({
+      delegator: '0x0000000000000000000000000000000000000001',
+      delegate: '0x0000000000000000000000000000000000000002',
+      caveats: [],
+    });
+    // The function should still return the txHash even if reverted
+    const txHash = await settleDelegationChain(d.id);
+    expect(typeof txHash).toBe('string');
   });
 });
 
@@ -492,5 +540,19 @@ describe('re-exports', () => {
 
   it('re-exports ROOT_MAX_CALLS', () => {
     expect(ROOT_MAX_CALLS).toBe(5);
+  });
+});
+
+describe('_getDelegationStore', () => {
+  it('returns the internal delegation store Map', () => {
+    const store = _getDelegationStore();
+    expect(store).toBeInstanceOf(Map);
+  });
+
+  it('stores SDK delegations after live requestPermissions', async () => {
+    _isDemo = false;
+    const d = await requestPermissions();
+    const store = _getDelegationStore();
+    expect(store.has(d.id)).toBe(true);
   });
 });

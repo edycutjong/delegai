@@ -1,5 +1,5 @@
 import { runExecWorker } from '../agents/exec-worker';
-import { getFeeData, sendTransaction, getStatus } from '../lib/relay';
+import { getFeeData, sendTransaction } from '../lib/relay';
 import { settleDelegationChain } from '../lib/delegator';
 import { callVenice } from '../lib/venice';
 import { eventBus } from '../lib/events';
@@ -19,19 +19,17 @@ describe('Exec Worker', () => {
     (callVenice as jest.Mock).mockResolvedValue('Venice exec decision.');
   });
 
-  it('runs the exec worker flow successfully', async () => {
+  it('runs the exec worker flow successfully without delegationId', async () => {
     (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
     (sendTransaction as jest.Mock).mockResolvedValue({ taskId: 'task-123' });
-    (getStatus as jest.Mock).mockResolvedValue({ txHash: '0x1234567890abcdef1234567890abcdef12345678' });
 
     const result = await runExecWorker();
 
-    expect(result).toEqual({ txHash: '0x1234567890abcdef1234567890abcdef12345678' });
+    expect(result).toEqual({ taskId: 'task-123', status: 'CONFIRMED', txHash: undefined });
 
     expect(getFeeData).toHaveBeenCalledTimes(1);
     expect(callVenice).toHaveBeenCalledTimes(1);
     expect(sendTransaction).toHaveBeenCalledTimes(1);
-    expect(getStatus).toHaveBeenCalledWith('task-123');
 
     expect(eventBus.emit).toHaveBeenCalledTimes(3);
 
@@ -44,38 +42,33 @@ describe('Exec Worker', () => {
     expect(eventBus.emit).toHaveBeenNthCalledWith(2, expect.objectContaining({
       type: 'relay_submitted',
       agent: 'exec-worker',
-      message: expect.stringContaining('Gwei'),
-    }));
-
-    expect(eventBus.emit).toHaveBeenNthCalledWith(3, expect.objectContaining({
-      type: 'relay_confirmed',
-      agent: 'exec-worker',
-      message: expect.stringContaining('1Shot relay confirmed: tx'),
+      message: expect.stringContaining('Submitting'),
     }));
   });
 
   it('submits encoded delegation chain when delegationId is provided', async () => {
     (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
-    (settleDelegationChain as jest.Mock).mockResolvedValue('task-settled');
-    (getStatus as jest.Mock).mockResolvedValue({ txHash: '0xsettled' });
+    (settleDelegationChain as jest.Mock).mockResolvedValue('0xsettledtxhash');
 
     const result = await runExecWorker('deleg-exec-id');
 
-    expect(result).toEqual({ txHash: '0xsettled' });
+    expect(result).toEqual({ taskId: '0xsettledtxhash', status: 'CONFIRMED', txHash: '0xsettledtxhash' });
     expect(settleDelegationChain).toHaveBeenCalledWith('deleg-exec-id');
-    expect(getStatus).toHaveBeenCalledWith('task-settled');
     expect(sendTransaction).not.toHaveBeenCalled();
   });
 
-  it('falls back to "unknown" taskId when settleDelegationChain returns undefined', async () => {
+  it('handles undefined txHash from settleDelegationChain', async () => {
     (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
     (settleDelegationChain as jest.Mock).mockResolvedValue(undefined);
-    (getStatus as jest.Mock).mockResolvedValue({ txHash: '0xfallback' });
 
     const result = await runExecWorker('deleg-demo-id');
 
-    expect(result).toEqual({ txHash: '0xfallback' });
-    expect(getStatus).toHaveBeenCalledWith('unknown');
+    expect(result).toEqual({ taskId: 'direct', status: 'CONFIRMED', txHash: undefined });
+
+    expect(eventBus.emit).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      type: 'relay_confirmed',
+      message: expect.stringContaining('no tx hash'),
+    }));
   });
 
   it('degrades gracefully when relay is not configured (code 4206)', async () => {
@@ -85,7 +78,6 @@ describe('Exec Worker', () => {
 
     expect(result.taskId).toBe('unconfigured');
     expect(result.status).toBe('CONFIRMED');
-    expect(getStatus).not.toHaveBeenCalled();
     expect(sendTransaction).not.toHaveBeenCalled();
     expect(eventBus.emit).toHaveBeenCalledTimes(2);
     expect(eventBus.emit).toHaveBeenNthCalledWith(1, expect.objectContaining({
@@ -98,19 +90,16 @@ describe('Exec Worker', () => {
     }));
   });
 
-  it('handles undefined txHash', async () => {
+  it('includes txHash in confirmed event metadata', async () => {
     (getFeeData as jest.Mock).mockResolvedValue({ feeAmount: '100000' });
-    (sendTransaction as jest.Mock).mockResolvedValue({ taskId: 'task-123' });
-    (getStatus as jest.Mock).mockResolvedValue({ status: 'PENDING' }); // No txHash
+    (settleDelegationChain as jest.Mock).mockResolvedValue('0xrealtxhash123456');
 
-    const result = await runExecWorker();
+    await runExecWorker('deleg-id');
 
-    expect(result).toEqual({ status: 'PENDING' });
-
-    expect(eventBus.emit).toHaveBeenNthCalledWith(3, expect.objectContaining({
+    expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({
       type: 'relay_confirmed',
-      agent: 'exec-worker',
-      message: expect.stringContaining('1Shot relay confirmed'),
+      message: expect.stringContaining('redeemDelegations confirmed'),
+      metadata: { txHash: '0xrealtxhash123456' },
     }));
   });
 
@@ -120,7 +109,6 @@ describe('Exec Worker', () => {
     await expect(runExecWorker()).rejects.toThrow('network timeout');
 
     expect(sendTransaction).not.toHaveBeenCalled();
-    expect(getStatus).not.toHaveBeenCalled();
   });
 
   it('re-throws non-Error objects from getFeeData', async () => {

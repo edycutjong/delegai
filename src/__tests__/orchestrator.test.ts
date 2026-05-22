@@ -108,8 +108,8 @@ describe('Orchestrator Worker', () => {
     );
   });
 
-  it('uses ONESHOT_WALLET_ADDRESS as exec delegate in live mode when set', async () => {
-    process.env.ONESHOT_WALLET_ADDRESS = '0x1ShotWalletAddr';
+  it('uses User EOA as exec delegate in live mode when PRIVATE_KEY_USER is set', async () => {
+    process.env.PRIVATE_KEY_USER = '0x0000000000000000000000000000000000000000000000000000000000000001';
     (createDelegationWithCaveats as jest.Mock)
       .mockReset()
       .mockResolvedValueOnce({ id: 'sub-data-2' })
@@ -120,14 +120,15 @@ describe('Orchestrator Worker', () => {
     const result = await runOrchestration();
 
     expect(result.subDelegations).toHaveLength(2);
-    // The second createDelegationWithCaveats call (exec worker) should use the 1Shot wallet address
+    // The second createDelegationWithCaveats call (exec worker) should use the User EOA address
+    // derived from PRIVATE_KEY_USER via privateKeyToAccount
     expect(createDelegationWithCaveats).toHaveBeenCalledWith(
       expect.objectContaining({
-        delegate: '0x1ShotWalletAddr',
+        delegate: expect.stringMatching(/^0x/),
       })
     );
 
-    delete process.env.ONESHOT_WALLET_ADDRESS;
+    delete process.env.PRIVATE_KEY_USER;
   });
 
   it('uses custom OrchestrationParams when provided', async () => {

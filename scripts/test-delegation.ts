@@ -69,10 +69,10 @@ async function main() {
   console.log(`  Delegator: ${rootDelegation.delegator}`);
   console.log(`  Delegate:  ${rootDelegation.delegate}`);
 
-  console.log('\nStep 2: Creating exec sub-delegation (master → 1Shot wallet)...');
+  console.log('\nStep 2: Creating exec sub-delegation (master → user EOA)...');
   const execDelegation = await createDelegationWithCaveats({
     delegator: masterAddr,
-    delegate: ONESHOT_WALLET,
+    delegate: eoaAddr,
     caveats: [
       { type: 'Erc20TransferAmount', value: toUsdcRaw(WORKER_BUDGET_USDC) },
       { type: 'LimitedCalls', value: WORKER_MAX_CALLS },
@@ -96,35 +96,40 @@ async function main() {
   console.log(`  Task ID: ${taskId}`);
 
   if (!taskId || taskId === 'unknown') {
-    console.error('  ✗ No task ID returned — check ONESHOT_CONTRACT_METHOD_ID');
+    console.error('  ✗ No transaction hash or task ID returned');
     process.exit(1);
   }
 
-  // 5. Poll for confirmation
-  console.log('\nStep 5: Polling for transaction confirmation...');
-  let attempts = 0;
-  let finalStatus;
-  while (attempts < 30) {
-    finalStatus = await getStatus(taskId);
-    console.log(`  [${++attempts}] Status: ${finalStatus.status}${finalStatus.txHash ? ` | TX: ${finalStatus.txHash}` : ''}`);
+  if (taskId.startsWith('0x')) {
+    console.log('\n✓ Transaction CONFIRMED on Sepolia via Direct Settlement!');
+    console.log(`  Etherscan: https://sepolia.etherscan.io/tx/${taskId}`);
+  } else {
+    // 5. Poll for confirmation
+    console.log('\nStep 5: Polling for transaction confirmation...');
+    let attempts = 0;
+    let finalStatus;
+    while (attempts < 30) {
+      finalStatus = await getStatus(taskId);
+      console.log(`  [${++attempts}] Status: ${finalStatus.status}${finalStatus.txHash ? ` | TX: ${finalStatus.txHash}` : ''}`);
 
-    if (finalStatus.status === 'CONFIRMED') {
-      console.log('\n✓ Transaction CONFIRMED on Sepolia!');
-      if (finalStatus.txHash) {
-        console.log(`  Etherscan: https://sepolia.etherscan.io/tx/${finalStatus.txHash}`);
+      if (finalStatus.status === 'CONFIRMED') {
+        console.log('\n✓ Transaction CONFIRMED on Sepolia!');
+        if (finalStatus.txHash) {
+          console.log(`  Etherscan: https://sepolia.etherscan.io/tx/${finalStatus.txHash}`);
+        }
+        break;
       }
-      break;
+      if (finalStatus.status === 'FAILED') {
+        console.error('\n✗ Transaction FAILED');
+        break;
+      }
+      await new Promise(r => setTimeout(r, 3000));
     }
-    if (finalStatus.status === 'FAILED') {
-      console.error('\n✗ Transaction FAILED');
-      break;
-    }
-    await new Promise(r => setTimeout(r, 3000));
-  }
 
-  if (finalStatus?.status === 'PENDING') {
-    console.log(`\n⏳ Still PENDING after ${attempts * 3}s — check 1Shot dashboard`);
-    console.log(`  Task: ${taskId}`);
+    if (finalStatus?.status === 'PENDING') {
+      console.log(`\n⏳ Still PENDING after ${attempts * 3}s — check 1Shot dashboard`);
+      console.log(`  Task: ${taskId}`);
+    }
   }
 
   // 6. Check final USDC balance

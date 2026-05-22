@@ -4,7 +4,7 @@
  * OpenAI-compatible API — used as core agent intelligence
  * ───────────────────────────────────────────────────────── */
 
-import { IS_DEMO } from './constants';
+
 
 const VENICE_API_BASE = 'https://api.venice.ai/api/v1';
 export const VENICE_MODEL = process.env.VENICE_MODEL ?? 'llama-3.3-70b';

@@ -55,11 +55,14 @@ export async function runOrchestration(params: OrchestrationParams = {}): Promis
     ? DEMO_ADDRESSES.execWorker
     : await createSmartAccount('exec-worker');
 
-  // In live mode, the exec delegation must be issued to the 1Shot wallet address
-  // so that 1Shot's msg.sender is authorized to call redeemDelegations.
-  const execDelegateAddr = (!IS_DEMO && process.env.ONESHOT_WALLET_ADDRESS)
-    ? process.env.ONESHOT_WALLET_ADDRESS
-    : execWorkerAddr;
+  // In live mode, the exec delegation must be issued to the User EOA address
+  // so that the User EOA (msg.sender) is authorized to call redeemDelegations directly.
+  // Previously this was the 1Shot wallet, but we now bypass the relay.
+  let execDelegateAddr = execWorkerAddr;
+  if (!IS_DEMO && process.env.PRIVATE_KEY_USER) {
+    const { privateKeyToAccount } = await import('viem/accounts');
+    execDelegateAddr = privateKeyToAccount(process.env.PRIVATE_KEY_USER as `0x${string}`).address;
+  }
 
   // Broadcast real addresses to the dashboard so agent cards show on-chain addresses
   if (!IS_DEMO) {
@@ -83,7 +86,7 @@ export async function runOrchestration(params: OrchestrationParams = {}): Promis
   await delay(STEP_DELAY);
 
   const rootDelegation = await requestPermissions(rootBudget, rootMaxCalls);
-  emitActivity('delegation_signed', 'user', 'Delegation signed via MetaMask Advanced Permissions');
+  emitActivity('delegation_signed', 'user', 'Delegation signed via MetaMask Advanced Permissions', { delegation: rootDelegation });
   await delay(STEP_DELAY);
 
   // Venice AI: reason about budget allocation before creating sub-delegations
@@ -112,7 +115,8 @@ export async function runOrchestration(params: OrchestrationParams = {}): Promis
   emitActivity(
     'sub_delegation_created',
     'master',
-    `Sub-delegation → Data Worker: ${workerBudget} USDC, ${workerMaxCalls} calls`
+    `Sub-delegation → Data Worker: ${workerBudget} USDC, ${workerMaxCalls} calls`,
+    { delegation: dataDelegation }
   );
   await delay(STEP_DELAY);
 
@@ -130,7 +134,8 @@ export async function runOrchestration(params: OrchestrationParams = {}): Promis
   emitActivity(
     'sub_delegation_created',
     'master',
-    `Sub-delegation → Exec Worker: ${workerBudget} USDC, ${workerMaxCalls} calls`
+    `Sub-delegation → Exec Worker: ${workerBudget} USDC, ${workerMaxCalls} calls`,
+    { delegation: execDelegation }
   );
   await delay(STEP_DELAY);
 
@@ -152,7 +157,8 @@ export async function runOrchestration(params: OrchestrationParams = {}): Promis
 function emitActivity(
   type: ActivityEvent['type'],
   agent: ActivityEvent['agent'],
-  message: string
+  message: string,
+  metadata?: Record<string, unknown>
 ) {
   eventBus.emit({
     id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
@@ -160,9 +166,11 @@ function emitActivity(
     agent,
     message,
     timestamp: Date.now(),
+    metadata,
   });
 }
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+

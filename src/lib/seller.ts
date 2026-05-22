@@ -99,6 +99,7 @@ export async function verifyPayment(paymentSignature: string | null): Promise<bo
  * allowing buyers to pay with encoded delegation chains instead of direct token transfers.
  */
 export class Erc7710ExactEvmScheme extends ExactEvmScheme {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   override async parsePrice(price: Price, _network: Network): Promise<AssetAmount> {
     if (typeof price === 'object' && 'amount' in price) return price as AssetAmount;
     const raw = typeof price === 'string' ? price.replace(/[^0-9.]/g, '') : String(price);

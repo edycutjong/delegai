@@ -32,6 +32,11 @@ type SdkDelegation = {
 // Used for sub-delegation creation (needs full parent object)
 const _delegationStore = new Map<string, SdkDelegation>();
 
+/** @internal — Exposed for E2E test scripts only. Do NOT use in production code. */
+export function _getDelegationStore(): Map<string, SdkDelegation> {
+  return _delegationStore;
+}
+
 function randomSalt(): `0x${string}` {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
@@ -290,12 +295,20 @@ export async function settleDelegationChain(delegationId: string): Promise<strin
   }
 
   const { encodeDelegations } = await import('@metamask/delegation-core');
-  const { sendTransaction } = await import('./relay');
+  const { encodeExecutionCalldata } = await import(
+    '@metamask/smart-accounts-kit/utils'
+  );
+  const { encodeFunctionData, createPublicClient, createWalletClient, http } = await import('viem');
+  const { privateKeyToAccount } = await import('viem/accounts');
+  const { sepolia } = await import('viem/chains');
+  const { getSmartAccountsEnvironment } = await import('@metamask/smart-accounts-kit');
+  const { DelegationManager: DM_ABI } = await import('@metamask/delegation-abis');
 
   const sdkDeleg = _delegationStore.get(delegationId);
   if (!sdkDeleg) {
-    const result = await sendTransaction();
-    return result.taskId;
+    // Fallback: no delegation in store, can't build chain
+    console.error('[settleDelegationChain] No delegation found for ID:', delegationId);
+    return undefined;
   }
 
   // Build chain [leaf, ..., root] — the DelegationManager checks delegations[0].delegate == msg.sender
@@ -317,14 +330,91 @@ export async function settleDelegationChain(delegationId: string): Promise<strin
 
   const encoded = encodeDelegations(chain as unknown as Parameters<typeof encodeDelegations>[0]);
 
-  // Build ERC-7579 single-call execution calldata: encodePacked(address target, uint256 value, bytes data)
-  // Target = USDC contract, value = 0, data = transfer(1ShotWallet, 1 raw unit)
-  const oneshotWallet = (process.env.ONESHOT_WALLET_ADDRESS ?? '0x0000000000000000000000000000000000000000').slice(2).toLowerCase().padStart(64, '0');
-  const transferCalldata = `a9059cbb${oneshotWallet}${'0'.repeat(63)}1`;
-  const executionCalldata = `0x${USDC_ADDRESS.slice(2)}${'0'.repeat(64)}${transferCalldata}`;
+  // Build execution — transfer 1 USDC raw unit (0.000001 USDC) as proof of delegation
+  const leafDelegate = sdkDeleg.delegate as `0x${string}`;
+  const transferData = encodeFunctionData({
+    abi: [
+      {
+        name: 'transfer',
+        type: 'function',
+        inputs: [
+          { name: 'to', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+        ],
+        outputs: [{ name: '', type: 'bool' }],
+      },
+    ],
+    functionName: 'transfer',
+    args: [leafDelegate, BigInt(1)],
+  });
 
-  const result = await sendTransaction({ encodedDelegations: encoded, executionCalldata });
-  return result.taskId;
+  // Construct ExecutionStruct inline (createExecution is internal, not re-exported from utils)
+  const executionCalldata = encodeExecutionCalldata([{
+    target: USDC_ADDRESS as `0x${string}`,
+    value: BigInt(0),
+    callData: transferData,
+  }]);
+
+  console.log('[settleDelegationChain] executionCalldata:', executionCalldata.slice(0, 40), '...');
+
+  // Build the full redeemDelegations calldata
+  const env = getSmartAccountsEnvironment(CHAIN_ID);
+  const dmAddr = env.DelegationManager as `0x${string}`;
+
+  const redeemCalldata = encodeFunctionData({
+    abi: DM_ABI,
+    functionName: 'redeemDelegations',
+    args: [
+      [encoded],  // bytes[] _permissionContexts
+      ['0x0000000000000000000000000000000000000000000000000000000000000000'],  // bytes32[] _modes (SingleDefault)
+      [executionCalldata],  // bytes[] _executionCallDatas
+    ],
+  });
+
+  // Send directly from the leaf delegate EOA
+  // The leaf delegate must be msg.sender for DelegationManager validation
+  const userKey = process.env.PRIVATE_KEY_USER as `0x${string}`;
+  const userEoa = privateKeyToAccount(userKey);
+
+  console.log('[settleDelegationChain] Sending redeemDelegations from:', userEoa.address);
+  console.log('[settleDelegationChain] DelegationManager:', dmAddr);
+
+  const publicClient = createPublicClient({ chain: sepolia, transport: http(RPC_URL) });
+
+  // Simulate first to catch errors early
+  try {
+    await publicClient.call({
+      account: userEoa.address,
+      to: dmAddr,
+      data: redeemCalldata,
+    });
+    console.log('[settleDelegationChain] Simulation succeeded ✅');
+  } catch (simErr: unknown) {
+    const msg = simErr instanceof Error ? simErr.message : String(simErr);
+    console.error('[settleDelegationChain] Simulation FAILED:', msg);
+    throw new Error(`redeemDelegations simulation failed: ${msg}`);
+  }
+
+  // Send the real transaction
+  const walletClient = createWalletClient({
+    account: userEoa,
+    chain: sepolia,
+    transport: http(RPC_URL),
+  });
+
+  const txHash = await walletClient.sendTransaction({
+    to: dmAddr,
+    data: redeemCalldata,
+  });
+
+  console.log('[settleDelegationChain] TX submitted:', txHash);
+
+  // Wait for receipt
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  console.log('[settleDelegationChain] Status:', receipt.status === 'success' ? '✅ SUCCESS' : '❌ REVERTED');
+  console.log('[settleDelegationChain] Gas used:', receipt.gasUsed.toString());
+
+  return txHash;
 }
 
 /**

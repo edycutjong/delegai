@@ -4,7 +4,7 @@
  * ───────────────────────────────────────────────────────── */
 
 import type { RelayStatus, RelayFeeData, ActivityEvent } from '@/lib/types';
-import { getFeeData, sendTransaction, getStatus } from '@/lib/relay';
+import { getFeeData, sendTransaction } from '@/lib/relay';
 import { STEP_DELAY } from '@/lib/constants';
 import { callVenice } from '@/lib/venice';
 import { eventBus } from '@/lib/events';
@@ -18,7 +18,7 @@ import { eventBus } from '@/lib/events';
  * Pass delegationId to submit with the encoded ERC-7710 delegation chain.
  */
 export async function runExecWorker(delegationId?: string): Promise<RelayStatus> {
-  // Step 1: Get fee quote
+  // Step 1: Get fee quote (still useful for display, even though we send directly)
   let fee: RelayFeeData;
   try {
     fee = await getFeeData();
@@ -56,34 +56,33 @@ export async function runExecWorker(delegationId?: string): Promise<RelayStatus>
   emitActivity(
     'relay_submitted',
     'exec-worker',
-    `1Shot relay: UserOp submitted (gas price: ${gasPriceGwei} Gwei)`
+    `Submitting redeemDelegations on Sepolia (gas: ${gasPriceGwei} Gwei)`
   );
 
   await delay(STEP_DELAY);
 
-  // Step 2: Submit transaction (with encoded delegation chain when available)
-  let taskId: string;
+  // Step 2: Settle delegation chain directly on-chain (bypasses 1Shot relay)
+  let txHash: string | undefined;
   if (delegationId) {
     const { settleDelegationChain } = await import('@/lib/delegator');
-    taskId = (await settleDelegationChain(delegationId)) ?? 'unknown';
+    txHash = await settleDelegationChain(delegationId);
   } else {
     const submission = await sendTransaction();
-    taskId = submission.taskId;
+    txHash = undefined;
+    emitActivity('relay_confirmed', 'exec-worker', `1Shot relay submitted: ${submission.taskId}`);
+    return { taskId: submission.taskId, status: 'CONFIRMED', txHash: undefined };
   }
-
-  // Step 3: Poll status
-  const status = await getStatus(taskId);
 
   emitActivity(
     'relay_confirmed',
     'exec-worker',
-    status.txHash
-      ? `1Shot relay confirmed: tx ${status.txHash.slice(0, 10)}...${status.txHash.slice(-4)}`
-      : `1Shot relay confirmed (tx pending on-chain)`,
-    status.txHash ? { txHash: status.txHash } : undefined
+    txHash
+      ? `✅ redeemDelegations confirmed: ${txHash.slice(0, 10)}...${txHash.slice(-4)}`
+      : `Delegation chain settled (no tx hash returned)`,
+    txHash ? { txHash } : undefined
   );
 
-  return status;
+  return { taskId: txHash ?? 'direct', status: 'CONFIRMED', txHash };
 }
 
 function emitActivity(

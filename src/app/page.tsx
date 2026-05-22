@@ -102,10 +102,8 @@ export default function LandingPage() {
           </Link>
 
           {/* Secondary — Pitch Deck */}
-          <a
-            href="/pitch/index.html"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/pitch"
             className="relative inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-primary/50 text-primary font-semibold text-lg overflow-hidden hover:bg-primary/10 hover:border-primary transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
           >
             <svg
@@ -133,7 +131,7 @@ export default function LandingPage() {
                 animation: "shimmer 3.5s linear infinite",
               }}
             />
-          </a>
+          </Link>
 
           {/* Tertiary — View Source */}
           <a
@@ -159,7 +157,7 @@ export default function LandingPage() {
           {[
             { label: "SDK APIs", value: "18", color: "text-primary" },
             { label: "Delegation Depth", value: "3", color: "text-info" },
-            { label: "Tracks", value: "5/5", color: "text-success" },
+            { label: "Tracks", value: "6/6", color: "text-success" },
           ].map((stat) => (
             <div key={stat.label} className="glass-card p-3 text-center">
               <p className={`text-2xl font-bold font-display ${stat.color}`}>

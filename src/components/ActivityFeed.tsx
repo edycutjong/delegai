@@ -33,7 +33,7 @@ const TYPE_STYLES: Record<
 // in sync regardless of how quickly subsequent items are added.
 function ActivityRow({ event, index }: { event: ActivityEvent; index: number }) {
   const style = TYPE_STYLES[event.type] ?? TYPE_STYLES.error;
-  const [highlighted, setHighlighted] = useState(true);
+  const [highlighted, setHighlighted] = useState(() => true);
 
   useEffect(() => {
     const t = setTimeout(() => setHighlighted(false), 1500);

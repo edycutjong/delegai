@@ -23,14 +23,15 @@ export async function POST(req: NextRequest) {
     try {
       const chain = await runOrchestration(params);
       await runDataWorker();
-      // Exec worker settles the chain via 1Shot relay with encoded delegation
-      await runExecWorker(chain.subDelegations[1].id);
+      // Exec worker settles the chain via direct redeemDelegations call
+      const execResult = await runExecWorker(chain.subDelegations[1].id);
       eventBus.emit({
         id: `evt-${Date.now()}-settle`,
         type: 'chain_settled',
         agent: 'master',
         message: 'Delegation chain fully settled on Sepolia',
         timestamp: Date.now(),
+        ...(execResult.txHash ? { metadata: { txHash: execResult.txHash } } : {}),
       });
     } catch (err) {
       eventBus.emit({

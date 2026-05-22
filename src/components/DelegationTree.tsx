@@ -2,7 +2,7 @@
 
 import { CheckCircle2, ExternalLink } from 'lucide-react';
 import type { Agent, DelegationChain, DemoStep } from '@/lib/types';
-import { AGENT_COLORS, BLOCK_EXPLORER } from '@/lib/constants';
+import { AGENT_COLORS, BLOCK_EXPLORER, USDC_ADDRESS } from '@/lib/constants';
 import { AddressBadge } from './AddressBadge';
 
 interface DelegationTreeProps {
@@ -149,31 +149,74 @@ export function DelegationTree({ agents, chain, step, txHash }: DelegationTreePr
 
       {/* Settlement block */}
       {chain && step === 'complete' && (
-        <div className="mt-5 relative flex items-center justify-center">
-          <span className="absolute inset-0 rounded-xl border border-success/50 animate-settle-ring pointer-events-none" />
-          <span className="absolute inset-0 rounded-xl border border-success/25 animate-settle-ring-2 pointer-events-none" />
+        <div className="mt-5 relative flex flex-col gap-4 animate-settle-appear">
+          <div className="relative flex items-center justify-center">
+            <span className="absolute inset-0 rounded-xl border border-success/50 animate-settle-ring pointer-events-none" />
+            <span className="absolute inset-0 rounded-xl border border-success/25 animate-settle-ring-2 pointer-events-none" />
 
-          <div className="relative w-full p-3 rounded-xl bg-success/10 border border-success/40 text-center animate-settle-appear">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <CheckCircle2 size={16} className="text-success" />
-              <p className="text-success text-sm font-semibold">Chain Settled on Sepolia</p>
+            <div className="relative w-full p-3 rounded-xl bg-success/10 border border-success/40 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <CheckCircle2 size={16} className="text-success" />
+                <p className="text-success text-sm font-semibold">Chain Settled on Sepolia</p>
+              </div>
+              <p className="text-xs text-text-muted font-mono mb-2">
+                All delegations consumed · ERC-7710 verified
+              </p>
+              {txHash ? (
+                <div className="flex flex-col items-center gap-1.5">
+                  {txHash === '0x95f4c6e0c8a9c2b7f23812206d8a1c36078a641ae8c0572f9b6217c1ce35a472' && (
+                    <span className="text-[9px] uppercase font-mono text-info tracking-wider bg-info/10 border border-info/30 px-1.5 py-0.5 rounded animate-pulse">
+                      Pre-signed On-chain Proof
+                    </span>
+                  )}
+                  <a
+                    href={`${BLOCK_EXPLORER}/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/20 border border-success/40 text-success text-xs font-mono hover:bg-success/30 transition-colors"
+                  >
+                    <ExternalLink size={11} />
+                    {txHash.slice(0, 10)}…{txHash.slice(-6)} · View on Etherscan
+                  </a>
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted font-mono opacity-50">Demo mode · no on-chain tx</p>
+              )}
             </div>
-            <p className="text-xs text-text-muted font-mono mb-2">
-              All delegations consumed · ERC-7710 verified
+          </div>
+
+          {/* Action details block */}
+          <div className="p-3.5 rounded-xl bg-black/40 border border-success/30 text-left space-y-2.5">
+            <p className="text-[11px] uppercase tracking-wider font-mono text-success/80 font-bold">
+              Executed On-Chain Action Details
             </p>
-            {txHash ? (
-              <a
-                href={`${BLOCK_EXPLORER}/tx/${txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/20 border border-success/40 text-success text-xs font-mono hover:bg-success/30 transition-colors"
-              >
-                <ExternalLink size={11} />
-                {txHash.slice(0, 10)}…{txHash.slice(-6)} · View on Etherscan
-              </a>
-            ) : (
-              <p className="text-xs text-text-muted font-mono opacity-50">Demo mode · no on-chain tx</p>
-            )}
+            
+            <div className="grid grid-cols-3 gap-y-1.5 gap-x-1 text-[11px] font-mono text-text-secondary">
+              <span className="text-text-muted">Function:</span>
+              <span className="col-span-2 text-success font-semibold">redeemDelegations(...)</span>
+
+              <span className="text-text-muted">Contract:</span>
+              <span className="col-span-2 text-text-primary">
+                USDC ({USDC_ADDRESS.slice(0, 6)}...{USDC_ADDRESS.slice(-4)})
+              </span>
+
+              <span className="text-text-muted">Calldata:</span>
+              <span className="col-span-2 text-warning overflow-hidden text-ellipsis whitespace-nowrap" title={`transfer(to: ${execWorker?.address || 'ExecWorker'}, amount: 1)`}>
+                transfer({execWorker?.address ? `${execWorker.address.slice(0, 6)}...${execWorker.address.slice(-4)}` : 'ExecWorker'}, 1)
+              </span>
+
+              <span className="text-text-muted">Value:</span>
+              <span className="col-span-2 text-text-primary">0 ETH</span>
+
+              <span className="text-text-muted">Proof Flow:</span>
+              <span className="col-span-2 text-text-primary text-[10px]">
+                User SA &rarr; Master &rarr; Exec Worker (Redeemer)
+              </span>
+            </div>
+            
+            <p className="text-[10px] text-text-muted leading-relaxed font-sans border-t border-border/40 pt-2">
+              The delegate redeemed the chain to execute a <code className="font-mono text-primary bg-primary/10 px-1 py-0.5 rounded">transfer(recipient, 0.000001 USDC)</code> on-chain. This cryptographically verified that the EIP-712 signature chain and the ERC-7710 caveats are fully validated and enforced by the MetaMask DelegationManager contract on Sepolia.
+            </p>
           </div>
         </div>
       )}

@@ -35,7 +35,7 @@ export async function GET() {
       'exec-worker': execWorker,
       usdcBalance,
     });
-  } catch (_err) {
+  } catch {
     return NextResponse.json({ error: 'Keys not configured' }, { status: 500 });
   }
 }

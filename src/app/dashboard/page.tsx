@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Agent, DelegationChain, ActivityEvent, DemoStep } from '@/lib/types';
+import type { Agent, DelegationChain, ActivityEvent, DemoStep, Delegation } from '@/lib/types';
 import { createMockAgents, createMockActivities } from '@/lib/mock-data';
 import { Header } from '@/components/Header';
 import { DelegationTree } from '@/components/DelegationTree';
@@ -14,6 +14,7 @@ import {
   ROOT_MAX_CALLS,
   WORKER_BUDGET_USDC,
   WORKER_MAX_CALLS,
+  toUsdcRaw,
 } from '@/lib/constants';
 
 const IS_LIVE = process.env.NEXT_PUBLIC_DELEGAI_DEMO !== 'true';
@@ -50,26 +51,36 @@ export default function DashboardPage() {
     if (IS_LIVE) return base.map((a) => ({ ...a, address: '' }));
     return base;
   });
-  const [activities, setActivities] = useState<ActivityEvent[]>([]);
-  const [step, setStep] = useState<DemoStep>('idle');
-  const [isRunning, setIsRunning] = useState(false);
-  const [chain, setChain] = useState<DelegationChain | null>(null);
-  const [rootBudget, setRootBudget] = useState(ROOT_BUDGET_USDC);
-  const [settleTxHash, setSettleTxHash] = useState<string | undefined>();
-  const [params, setParams] = useState({
+  const [activities, setActivities] = useState<ActivityEvent[]>(() => []);
+  const [step, setStep] = useState<DemoStep>(() => 'idle');
+  const [isRunning, setIsRunning] = useState(() => false);
+  const [chain, setChain] = useState<DelegationChain | null>(() => null);
+  const [rootBudget, setRootBudget] = useState(() => ROOT_BUDGET_USDC);
+  const [settleTxHash, setSettleTxHash] = useState<string | undefined>(() => undefined);
+  const [params, setParams] = useState(() => ({
     rootBudget: ROOT_BUDGET_USDC,
     rootMaxCalls: ROOT_MAX_CALLS,
     workerBudget: WORKER_BUDGET_USDC,
     workerMaxCalls: WORKER_MAX_CALLS,
-  });
+  }));
   const subDelegCount = useRef(0);
-
+  const [isLiveConfigured, setIsLiveConfigured] = useState(() => false);
+  const [hasCheckedConfig, setHasCheckedConfig] = useState(() => !IS_LIVE);
+  const liveModeActive = IS_LIVE && isLiveConfigured;
+ 
   // Pre-load real addresses + on-chain USDC balance on mount in live mode
   useEffect(() => {
     if (!IS_LIVE) return;
     fetch('/api/addresses')
-      .then((r) => r.json())
-      .then((data: Record<string, string> & { usdcBalance?: number }) => {
+      .then((r) => {
+        if (!r.ok) throw new Error('Keys not configured');
+        return r.json();
+      })
+      .then((data: Record<string, string> & { usdcBalance?: number; error?: string }) => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        setIsLiveConfigured(true);
         setAgents((prev) =>
           prev.map((a) => (data[a.role] ? { ...a, address: data[a.role] } : a))
         );
@@ -85,7 +96,14 @@ export default function DashboardPage() {
           );
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setIsLiveConfigured(false);
+        // Restore demo addresses for demo fallback mode
+        setAgents(createMockAgents());
+      })
+      .finally(() => {
+        setHasCheckedConfig(true);
+      });
   }, []);
 
   const runLive = useCallback(async () => {
@@ -142,7 +160,12 @@ export default function DashboardPage() {
         setAgents((prev) =>
           prev.map((a) =>
             a.role === workerRole
-              ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls } }
+              ? {
+                  ...a,
+                  status: 'idle' as const,
+                  budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls },
+                  delegation: event.metadata?.delegation as Delegation,
+                }
               : a
           )
         );
@@ -154,7 +177,7 @@ export default function DashboardPage() {
       // Update agent statuses based on event
       if (event.type === 'delegation_signed') {
         setAgents((prev) =>
-          prev.map((a) => (a.role === 'user' ? { ...a, status: 'done' as const } : a))
+          prev.map((a) => (a.role === 'user' ? { ...a, status: 'done' as const, delegation: event.metadata?.delegation as Delegation } : a))
         );
       } else if (event.type === 'x402_payment_sent') {
         setAgents((prev) =>
@@ -211,12 +234,16 @@ export default function DashboardPage() {
       setIsRunning(false);
       es.close();
     };
-  }, [isRunning]);
+  }, [isRunning, params]);
 
   const runDemo = useCallback(async () => {
     if (isRunning) return;
     setIsRunning(true);
     setActivities([]);
+
+    const { createMockDelegationChain } = await import('@/lib/mock-data');
+    const mockChain = createMockDelegationChain();
+    const { DEMO_ADDRESSES } = await import('@/lib/constants');
 
     const allActivities = createMockActivities();
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -232,7 +259,19 @@ export default function DashboardPage() {
     setActivities((prev) => [...prev, allActivities[1]]);
     setAgents((prev) =>
       prev.map((a) =>
-        a.role === 'user' ? { ...a, status: 'done' as const } : a
+        a.role === 'user'
+          ? {
+              ...a,
+              status: 'done' as const,
+              delegation: {
+                ...mockChain.root,
+                caveats: [
+                  { type: 'Erc20TransferAmount', value: toUsdcRaw(params.rootBudget) },
+                  { type: 'LimitedCalls', value: params.rootMaxCalls },
+                ],
+              },
+            }
+          : a
       )
     );
     await delay(800);
@@ -248,7 +287,19 @@ export default function DashboardPage() {
     setAgents((prev) =>
       prev.map((a) =>
         a.role === 'data-worker'
-          ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls } }
+          ? {
+              ...a,
+              status: 'idle' as const,
+              budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls },
+              delegation: {
+                ...mockChain.subDelegations[0],
+                caveats: [
+                  { type: 'Erc20TransferAmount', value: toUsdcRaw(params.workerBudget) },
+                  { type: 'LimitedCalls', value: params.workerMaxCalls },
+                  { type: 'Redeemer', value: DEMO_ADDRESSES.dataWorker },
+                ],
+              },
+            }
           : a
       )
     );
@@ -259,7 +310,19 @@ export default function DashboardPage() {
     setAgents((prev) =>
       prev.map((a) =>
         a.role === 'exec-worker'
-          ? { ...a, status: 'idle' as const, budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls } }
+          ? {
+              ...a,
+              status: 'idle' as const,
+              budget: { ...a.budget, allocated: params.workerBudget, callsMax: params.workerMaxCalls },
+              delegation: {
+                ...mockChain.subDelegations[1],
+                caveats: [
+                  { type: 'Erc20TransferAmount', value: toUsdcRaw(params.workerBudget) },
+                  { type: 'LimitedCalls', value: params.workerMaxCalls },
+                  { type: 'Redeemer', value: DEMO_ADDRESSES.execWorker },
+                ],
+              },
+            }
           : a
       )
     );
@@ -281,6 +344,7 @@ export default function DashboardPage() {
     );
     setActivities((prev) => [...prev, allActivities[4]]);
     await delay(1000);
+
 
     setStep('x402_data_received');
     setActivities((prev) => [...prev, allActivities[5]]);
@@ -330,14 +394,14 @@ export default function DashboardPage() {
     );
 
     // Build chain for visualization
-    const { createMockDelegationChain } = await import('@/lib/mock-data');
-    const mockChain = createMockDelegationChain();
-    mockChain.root.status = 'settled';
-    mockChain.subDelegations.forEach((d) => (d.status = 'settled'));
-    setChain(mockChain);
+    const settledChain = createMockDelegationChain();
+    settledChain.root.status = 'settled';
+    settledChain.subDelegations.forEach((d) => (d.status = 'settled'));
+    setChain(settledChain);
+    setSettleTxHash('0x95f4c6e0c8a9c2b7f23812206d8a1c36078a641ae8c0572f9b6217c1ce35a472');
 
     setIsRunning(false);
-  }, [isRunning]);
+  }, [isRunning, params.workerBudget, params.workerMaxCalls, params.rootBudget, params.rootMaxCalls]);
 
   const totalConsumed = agents.reduce((sum, a) => sum + a.budget.consumed, 0);
 
@@ -366,9 +430,15 @@ export default function DashboardPage() {
             <span key={step} className="text-sm font-mono text-text-secondary animate-step-flash">
               {STEP_LABELS[step]}
             </span>
-            {isRunning && (
-              <span className="hidden sm:inline text-xs font-mono text-text-muted animate-fade-in-up px-2 py-0.5 rounded bg-bg-elevated/50">
-                LIVE
+            {hasCheckedConfig && (
+              <span
+                className={`text-[10px] sm:text-xs font-mono px-2 py-0.5 rounded border transition-all duration-300 ${
+                  liveModeActive
+                    ? 'bg-primary/10 text-primary border-primary/30 animate-pulse'
+                    : 'bg-info/10 text-info border-info/30'
+                }`}
+              >
+                {liveModeActive ? 'SEPOLIA LIVE' : 'DEMO MODE (VERIFIABLE PROOF)'}
               </span>
             )}
           </div>
@@ -410,7 +480,7 @@ export default function DashboardPage() {
               </div>
             )}
             <StartDelegationButton
-              onClick={IS_LIVE ? runLive : runDemo}
+              onClick={liveModeActive ? runLive : runDemo}
               isRunning={isRunning}
               isComplete={step === 'complete'}
             />

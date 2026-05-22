@@ -42,7 +42,7 @@ export function AgentCard({ agent }: AgentCardProps) {
   const statusStyle = STATUS_STYLES[agent.status] || STATUS_STYLES.idle;
   const color = AGENT_COLORS[agent.role] || '#94a3b8';
   const prevStatus = useRef(agent.status);
-  const [flashClass, setFlashClass] = useState('');
+  const [flashClass, setFlashClass] = useState(() => '');
 
   useEffect(() => {
     if (prevStatus.current === agent.status) return;

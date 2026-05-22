@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, ExternalLink } from 'lucide-react';
 import { BLOCK_EXPLORER } from '@/lib/constants';
 
 interface AddressBadgeProps {
@@ -29,7 +29,7 @@ export function AddressBadge({
   className = '',
   minimal = false,
 }: AddressBadgeProps) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(() => false);
 
   const truncated = `${address.slice(0, startChars)}…${address.slice(-endChars)}`;
 
@@ -40,7 +40,7 @@ export function AddressBadge({
       await navigator.clipboard.writeText(address);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch (_err) {
+    } catch {
       // Fallback for environments where clipboard API is unavailable
       const ta = document.createElement('textarea');
       ta.value = address;
@@ -56,16 +56,29 @@ export function AddressBadge({
   if (minimal) {
     return (
       <span
-        className={`inline-flex items-center gap-1 font-mono cursor-pointer hover:opacity-100 transition-opacity ${className}`}
-        onClick={handleCopy}
-        title={copied ? 'Copied!' : `Click to copy: ${address}`}
+        className={`inline-flex items-center gap-1 font-mono ${className}`}
       >
-        <span>{truncated}</span>
-        {copied ? (
-          <Check size={10} className="text-success shrink-0" />
-        ) : (
-          <Copy size={10} className="text-text-muted shrink-0 opacity-50" />
-        )}
+        <a
+          href={`${BLOCK_EXPLORER}/address/${address}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-primary transition-colors duration-200 inline-flex items-center gap-0.5"
+          title={`View on Etherscan: ${address}`}
+        >
+          <span>{truncated}</span>
+          <ExternalLink size={9} className="opacity-40 hover:opacity-100 shrink-0" />
+        </a>
+        <button
+          onClick={handleCopy}
+          className="opacity-40 hover:opacity-100 transition-opacity duration-200 hover:text-primary"
+          title="Copy address"
+        >
+          {copied ? (
+            <Check size={10} className="text-success shrink-0" />
+          ) : (
+            <Copy size={10} className="shrink-0" />
+          )}
+        </button>
       </span>
     );
   }

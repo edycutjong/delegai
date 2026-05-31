@@ -303,6 +303,14 @@ const SLIDES: Slide[] = [
             ⚡ Live Demo
           </Link>
           <a
+            href="https://youtu.be/MeoZRcPIM1A"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-primary/50 text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-105"
+          >
+            🎬 Pitch Video
+          </a>
+          <a
             href="https://github.com/edycutjong/delegai"
             target="_blank"
             rel="noopener noreferrer"

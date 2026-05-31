@@ -1,12 +1,13 @@
 <div align="center">
+  <img src="public/icon.svg" alt="DelegAI Logo" width="96" height="96">
   <h1>DelegAI 🤖</h1>
   <p><em>The first trustless M2M delegation economy — 18 SDK integration points, 3-level spending hierarchy, <10s settlement, $0.00 gas.</em></p>
-  <img src="docs/readme-hero.png" alt="DelegAI" width="100%">
+  <img src="https://github.com/user-attachments/assets/5f9897f4-7a3e-4cc4-83e9-0967ab812530" alt="DelegAI Landing Page" width="100%">
 
   <br/>
 
   [![Live Demo](https://img.shields.io/badge/🚀_Live-Demo-06b6d4?style=for-the-badge)](https://delegai.edycu.dev)
-  [![Pitch Video](https://img.shields.io/badge/🎬_Pitch-Video-ef4444?style=for-the-badge)](https://youtu.be/TODO)
+  [![Pitch Video](https://img.shields.io/badge/🎬_Pitch-Video-ef4444?style=for-the-badge)](https://youtu.be/MeoZRcPIM1A)
   [![Pitch Deck](https://img.shields.io/badge/📊_Pitch-Deck-f59e0b?style=for-the-badge)](https://delegai.edycu.dev/pitch)
   [![Built for HackQuest](https://img.shields.io/badge/HackQuest-MetaMask_×_1Shot_×_Venice_AI-8b5cf6?style=for-the-badge)](https://www.hackquest.io/hackathons/MetaMask-Smart-Accounts-Kit-x-1Shot-API-x-Venice-AI-Dev-Cook-Off)
 
@@ -35,7 +36,7 @@
 > **DelegAI made that possible:** 3 agents, 4 delegations, 2 x402 micropayments, 1 gasless relay — all cryptographically constrained by ERC-7710 caveats. The user slept through it.
 
 <div align="center">
-  <img src="src/app/opengraph-image.png" alt="DelegAI Demo" width="100%">
+  <img src="https://github.com/user-attachments/assets/3bf57ec7-dfd1-4165-8aef-18825019113b" alt="DelegAI Dashboard Demo" width="100%">
 </div>
 
 > **Grant → Redelegate → Pay → Execute → Settle.** The full delegation chain in <10 seconds.

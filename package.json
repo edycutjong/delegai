@@ -38,7 +38,7 @@
     "eslint-config-next": "16.2.6",
     "jest": "^29.7.0",
     "tailwindcss": "^4",
-    "ts-jest": "^29.4.9",
+    "ts-jest": "^29.4.11",
     "@lhci/cli": "^0.14.0",
     "@playwright/test": "^1.52.0",
     "typescript": "^5"

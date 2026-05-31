@@ -53,3 +53,12 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Lighthouse
+.lighthouseci/

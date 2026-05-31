@@ -21,6 +21,7 @@ const config = {
       statements: 100,
     },
   },
+  testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
 };
 
 module.exports = config;

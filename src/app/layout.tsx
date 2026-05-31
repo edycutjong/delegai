@@ -33,12 +33,21 @@ export const metadata: Metadata = {
     "Delegation",
     "Web3",
   ],
+  icons: { icon: "/icon.svg" },
   openGraph: {
     title: "DelegAI — Autonomous Agent Delegation Network",
     description:
       "AI agents autonomously hire, scope, and pay sub-agents via MetaMask redelegation chains and x402 micropayments.",
     url: "https://delegai.edycu.dev",
     siteName: "DelegAI",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "DelegAI — Autonomous Agent Delegation Network",
+      },
+    ],
     locale: "en_US",
     type: "website",
   },

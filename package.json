@@ -19,7 +19,7 @@
     "verify": "npx tsx --env-file=.env.local scripts/verify-submission.ts"
   },
   "dependencies": {
-    "@metamask/smart-accounts-kit": "^1.5.0",
+    "@metamask/smart-accounts-kit": "^1.7.0",
     "@x402/core": "^2.12.0",
     "@x402/evm": "^2.12.0",
     "lucide-react": "^1.16.0",
